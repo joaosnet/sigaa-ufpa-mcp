@@ -23,40 +23,92 @@ sigaa-ufpa-mcp/
 └── data/
     └── downloads/
 ```
-## 🚀 Como Usar
+## 🚀 Como Usar com Docker
 
-### 1. Configuração Inicial
+Este projeto é otimizado para execução com Docker, oferecendo dois modos principais: `http` (serviço web) e `stdio` (para clientes MCP).
+
+### 1. Pré-requisitos
+
+- Docker e Docker Compose instalados.
+- Credenciais de acesso ao SIGAA e uma chave de API para o Google Gemini.
+
+### 2. Configuração
+
+1.  **Clone o repositório:**
+    ```bash
+    git clone https://github.com/seu-usuario/sigaa-ufpa-mcp.git
+    cd sigaa-ufpa-mcp
+    ```
+
+2.  **Configure as Variáveis de Ambiente:**
+    Copie o arquivo de exemplo e preencha com suas credenciais.
+    ```bash
+    cp .env.exemple .env
+    nano .env
+    ```
+    Preencha `SIGAA_USERNAME`, `SIGAA_PASSWORD` e `GEMINI_API_KEY`.
+
+### 3. Construindo a Imagem Docker
+
+Antes de executar o contêiner, construa a imagem com uma tag específica. Isso só precisa ser feito uma vez ou sempre que o `Dockerfile` for alterado.
 
 ```bash
-# Clone/crie o projeto
-mkdir sigaa-ufpa-mcp && cd sigaa-ufpa-mcp
+docker build -t sigaa-ufpa-mcp .
+```
 
-# Configure o arquivo .env com suas credenciais
-cp .env.example .env
-nano .env  # Edite com suas credenciais
+### 4. Modos de Execução
 
-# Execute com Docker
+#### a) Modo Serviço Web (via Docker Compose)
+
+Ideal para manter o servidor rodando como um serviço de fundo, com reinicialização automática e acesso via VNC.
+
+```bash
 docker-compose up -d
 ```
 
-### 2. Configuração para Claude Desktop
+- O servidor estará acessível na porta `8000`.
+- Você pode monitorar os logs com `docker-compose logs -f`.
+- A interface gráfica pode ser acessada via VNC no endereço `localhost:5900` (senha padrão: `browser-use`).
 
-Adicione ao seu `claude_desktop_config.json`:
+#### b) Modo Cliente MCP (via `docker run`)
+
+Este modo é para integrar o servidor a um cliente MCP, como o Claude Desktop, que se comunica via `stdio`.
+
+Adicione a seguinte configuração ao seu cliente MCP. Este método é o mais recomendado, pois centraliza todas as configurações no cliente e não depende de um arquivo `.env`.
 
 ```json
 {
-  "mcpServers": {
+  "mcp_servers": {
     "sigaa-ufpa": {
+      "name": "SIGAA UFPA MCP Server",
+      "type": "stdio",
       "command": "docker",
       "args": [
-        "exec", "-i", "sigaa-ufpa-mcp",
-        "python", "server.py"
+        "run",
+        "--rm",
+        "-i",
+        "sigaa-ufpa-mcp:latest"
       ],
-      "env": {}
+      "env": {
+        "GEMINI_API_KEY": "COLE_SUA_API_KEY_DO_GEMINI_AQUI",
+        "SIGAA_USERNAME": "COLE_SEU_USUARIO_SIGAA_AQUI",
+        "SIGAA_PASSWORD": "COLE_SUA_SENHA_SIGAA_AQUI",
+        "MCP_TRANSPORT": "stdio",
+        "LOG_LEVEL": "INFO",
+        "CHROME_HEADLESS": "true"
+      }
     }
   }
 }
 ```
+
+**Explicação da configuração:**
+
+- `"command": "docker"` e `"args": [...]`: Executa o contêiner a partir da imagem `sigaa-ufpa-mcp` que você construiu.
+  - `--rm`: Remove o contêiner automaticamente após o uso.
+  - `-i`: Mantém o `STDIN` aberto, essencial para a comunicação `stdio`.
+- `"env"`: Passa todas as credenciais e chaves de API diretamente para o ambiente do contêiner. O servidor lerá essas variáveis para funcionar.
+- `"type": "stdio"`: Informa ao cliente para se comunicar via entrada/saída padrão. O servidor no contêiner já inicia neste modo por padrão.
 
 ### 3. Exemplo de Uso
 
@@ -119,4 +171,4 @@ Para problemas ou melhorias:
 1. Verifique os logs em `/app/logs/server.log`
 2. Confirme que as credenciais estão corretas
 3. Teste a conectividade com o SIGAA
-4. Verifique se a API key do LLM está funcionando
+4. Verifique se a `GEMINI_API_KEY` está funcionando

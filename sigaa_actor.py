@@ -7,8 +7,6 @@ from pathlib import Path
 
 from browser_use import Browser, Agent
 from browser_use.browser.browser import BrowserConfig
-from browser_use.llm.openai import ChatOpenAI
-from browser_use.llm.anthropic import ChatAnthropic
 from browser_use.llm.google import ChatGoogle
 
 from utils.sigaa_helpers import SIGAAHelpers
@@ -42,27 +40,16 @@ class SIGAAActor:
         self._setup_llm()
     
     def _setup_llm(self):
-        """Configura o LLM baseado nas variáveis de ambiente disponíveis"""
-        if os.getenv("OPENAI_API_KEY"):
-            self.llm = ChatOpenAI(
-                api_key=os.getenv("OPENAI_API_KEY"),
-                model="gpt-4o",
-                temperature=0.1
-            )
-        elif os.getenv("ANTHROPIC_API_KEY"):
-            self.llm = ChatAnthropic(
-                api_key=os.getenv("ANTHROPIC_API_KEY"),
-                model="claude-3-5-sonnet-20241022",
-                temperature=0.1
-            )
-        elif os.getenv("GEMINI_API_KEY"):
-            self.llm = ChatGoogle(
-                api_key=os.getenv("GEMINI_API_KEY"),
-                model="gemini-1.5-pro",
-                temperature=0.1
-            )
-        else:
-            raise ValueError("Nenhuma API key de LLM encontrada. Configure OPENAI_API_KEY, ANTHROPIC_API_KEY ou GEMINI_API_KEY")
+        """Configura o LLM para usar o Google Gemini."""
+        gemini_api_key = os.getenv("GEMINI_API_KEY")
+        if not gemini_api_key:
+            raise ValueError("A variável de ambiente GEMINI_API_KEY não foi configurada.")
+        
+        self.llm = ChatGoogle(
+            api_key=gemini_api_key,
+            model="gemini-1.5-pro",
+            temperature=0.1
+        )
     
     async def initialize(self):
         """Inicializa o browser e configurações"""
@@ -77,8 +64,7 @@ class SIGAAActor:
                 disable_security=True  # Necessário para alguns sites
             )
             
-            self.browser = Browser(config=config)
-            await self.browser.start()
+            self.browser = await Browser.start(config=config)
             
             logger.info("SIGAA Actor inicializado com sucesso")
             
@@ -124,9 +110,9 @@ class SIGAAActor:
                         break
                         
                     # Se não encontrou pelos seletores CSS, tentar usando LLM
-                    username_field = await page.get_element_by_prompt("campo de nome de usuário ou login", llm=self.llm)
-                    password_field = await page.get_element_by_prompt("campo de senha", llm=self.llm)
-                    login_button = await page.get_element_by_prompt("botão entrar ou login", llm=self.llm)
+                    username_field = await page.get_element("campo de nome de usuário ou login", llm=self.llm)
+                    password_field = await page.get_element("campo de senha", llm=self.llm)
+                    login_button = await page.get_element("botão entrar ou login", llm=self.llm)
                     
                     if username_field and password_field and login_button:
                         break
@@ -235,7 +221,7 @@ class SIGAAActor:
                         break
             
             # Extrair matrícula se visível
-            matricula_element = await page.get_element_by_prompt("número de matrícula do aluno", llm=self.llm)
+            matricula_element = await page.get_element("número de matrícula do aluno", llm=self.llm)
             if matricula_element:
                 matricula_text = await matricula_element.evaluate("el => el.innerText")
                 user_info["matricula"] = matricula_text.strip()
@@ -271,8 +257,8 @@ class SIGAAActor:
             # Tentar encontrar link/menu para a seção
             for term in search_terms:
                 try:
-                    element = await self.current_page.get_element_by_prompt(
-                        f"link ou menu para {term}", 
+                    element = await self.current_page.get_element(
+                        f"link ou menu para {term}",
                         llm=self.llm
                     )
                     if element:
@@ -312,7 +298,7 @@ class SIGAAActor:
                 situacao: str
                 periodo: str
             
-            grades_data = await self.current_page.extract_content(
+            grades_data = await self.current_page.extract(
                 "Extrair todas as notas e situações das disciplinas desta página",
                 List[Grade],
                 llm=self.llm
@@ -341,7 +327,7 @@ class SIGAAActor:
                 situacao: str
                 periodo: str
             
-            transcript_data = await self.current_page.extract_content(
+            transcript_data = await self.current_page.extract(
                 "Extrair histórico acadêmico completo com todas as disciplinas",
                 List[Subject],
                 llm=self.llm
@@ -360,7 +346,7 @@ class SIGAAActor:
     async def extract_enrollment_info(self) -> Dict[str, Any]:
         """Extrai informações de matrícula"""
         try:
-            enrollment_info = await self.current_page.extract_content(
+            enrollment_info = await self.current_page.extract(
                 "Extrair informações de matrícula atual incluindo disciplinas matriculadas, horários e status",
                 dict,
                 llm=self.llm
@@ -379,7 +365,7 @@ class SIGAAActor:
     async def extract_general_info(self) -> Dict[str, Any]:
         """Extrai informações gerais da página atual"""
         try:
-            page_info = await self.current_page.extract_content(
+            page_info = await self.current_page.extract(
                 "Extrair todas as informações importantes desta página do SIGAA",
                 dict,
                 llm=self.llm
@@ -411,7 +397,7 @@ class SIGAAActor:
             # Procurar link para gerar/baixar documento
             for term in search_terms:
                 try:
-                    download_link = await self.current_page.get_element_by_prompt(
+                    download_link = await self.current_page.get_element(
                         f"link para gerar ou baixar {term}",
                         llm=self.llm
                     )
@@ -493,7 +479,7 @@ class SIGAAActor:
             extracted_data = None
             if return_data:
                 try:
-                    extracted_data = await self.current_page.extract_content(
+                    extracted_data = await self.current_page.extract(
                         "Extrair dados relevantes da página atual após executar a tarefa",
                         dict,
                         llm=self.llm
@@ -504,7 +490,7 @@ class SIGAAActor:
             return {
                 "success": True,
                 "task": task,
-                "result": str(result),
+                "result": str(result.output),
                 "extracted_data": extracted_data
             }
             
@@ -516,13 +502,13 @@ class SIGAAActor:
         """Obtém notificações do SIGAA"""
         try:
             # Procurar por área de notificações
-            notification_element = await self.current_page.get_element_by_prompt(
+            notification_element = await self.current_page.get_element(
                 "área de notificações, avisos ou mensagens",
                 llm=self.llm
             )
             
             if notification_element:
-                notifications = await self.current_page.extract_content(
+                notifications = await self.current_page.extract(
                     "Extrair todas as notificações, avisos e mensagens importantes",
                     list,
                     llm=self.llm
@@ -544,7 +530,7 @@ class SIGAAActor:
         """Obtém horário de aulas"""
         try:
             # Navegar para área de horários se necessário
-            schedule_link = await self.current_page.get_element_by_prompt(
+            schedule_link = await self.current_page.get_element(
                 "link para horário de aulas ou cronograma",
                 llm=self.llm
             )
@@ -554,7 +540,7 @@ class SIGAAActor:
                 await asyncio.sleep(3)
             
             # Extrair horário
-            schedule_data = await self.current_page.extract_content(
+            schedule_data = await self.current_page.extract(
                 "Extrair horário de aulas completo com disciplinas, horários, professores e salas",
                 dict,
                 llm=self.llm
@@ -631,7 +617,7 @@ class SIGAAActor:
                 return {"success": True, "message": "Nenhuma sessão ativa"}
             
             # Procurar link de logout
-            logout_link = await self.current_page.get_element_by_prompt(
+            logout_link = await self.current_page.get_element(
                 "link de logout ou sair",
                 llm=self.llm
             )

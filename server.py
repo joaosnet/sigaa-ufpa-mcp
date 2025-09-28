@@ -362,8 +362,19 @@ async def cleanup():
 
 if __name__ == "__main__":
     try:
-        # Executar servidor MCP
-        mcp.run(transport="stdio", host="0.0.0.0", port=8000)
+        # Padrão é 'stdio', a menos que MCP_TRANSPORT seja 'http'
+        transport_mode = os.getenv("MCP_TRANSPORT", "stdio")
+        
+        if transport_mode == "http":
+            logger.info("Iniciando servidor MCP em modo HTTP...")
+            mcp.run(transport="http", host="0.0.0.0", port=8000)
+        elif transport_mode == "stdio":
+            logger.info("Iniciando servidor MCP em modo stdio...")
+            mcp.run(transport="stdio")
+        else:
+            logger.error(f"Modo de transporte desconhecido: {transport_mode}. Use 'stdio' ou 'http'.")
+            # Inicia em stdio como fallback seguro para clientes MCP
+            mcp.run(transport="stdio")
     except KeyboardInterrupt:
         logger.info("Encerrando servidor...")
     finally:
