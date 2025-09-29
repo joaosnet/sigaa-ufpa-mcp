@@ -145,9 +145,9 @@ Após configurar, você pode usar no Claude:
 
 ## 📋 Ferramentas Disponíveis
 
-1. **sigaa_login** - Login automático no SIGAA
+1. **sigaa_login** - Realiza login no SIGAA com credenciais fornecidas ou do ambiente. A maioria das outras ferramentas verifica automaticamente se o usuário está logado e, se não estiver, realiza o login antes de executar a operação solicitada.
 2. **sigaa_navigate_and_extract** - Navegar e extrair dados de seções
-3. **sigaa_download_document** - Baixar documentos acadêmicos  
+3. **sigaa_download_document** - Baixar documentos acadêmicos
 4. **sigaa_custom_task** - Executar tarefas personalizadas com IA
 5. **sigaa_get_notifications** - Obter notificações e avisos
 6. **sigaa_get_class_schedule** - Extrair horário de aulas

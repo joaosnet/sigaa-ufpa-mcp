@@ -25,6 +25,7 @@ class SIGAAActor:
         self.helpers = SIGAAHelpers()
         self.agent: Optional[Agent] = None
         self.browser: Optional[Browser] = None
+        self.current_page = None # Para manter referência à página atual após login
 
         # Configurar LLM baseado nas variáveis de ambiente
         self._setup_llm()
@@ -52,7 +53,7 @@ class SIGAAActor:
 
     async def login(self, username: str, password: str, force_new: bool = False) -> Dict[str, Any]:
         """
-        Realiza login no SIGAA usando a abordagem Actor (direta).
+        Realiza login no SIGAA usando a abordagem direta com o browser.
         """
         if self.is_logged_in_flag and not force_new:
             return {
@@ -62,7 +63,7 @@ class SIGAAActor:
                 "user_info": self.user_info
             }
 
-        logger.info("Iniciando login no SIGAA UFPA (modo Actor)")
+        logger.info("Iniciando login no SIGAA UFPA")
 
         if not self.browser:
             await self.initialize()
@@ -70,12 +71,19 @@ class SIGAAActor:
         try:
             page = await self.browser.new_page(SIGAAConfig.LOGIN_URL)
             
-            # Preencher usuário e senha
-            await page.fill("input[name='user.login']", username)
-            await page.fill("input[name='user.senha']", password)
+            # Aguardar carregamento da página
+            await asyncio.sleep(2)
             
-            # Clicar no botão de login
-            login_button = await page.get_element_by_css_selector("input[type='submit'][value='Entrar']")
+            # Preencher usuário - usando IA para encontrar o campo
+            username_field = await page.must_get_element_by_prompt("campo de nome de usuário ou matrícula para login", llm=self.llm)
+            await username_field.fill(username)
+            
+            # Preencher senha - usando IA para encontrar o campo
+            password_field = await page.must_get_element_by_prompt("campo de senha para login", llm=self.llm)
+            await password_field.fill(password)
+
+            # Clicar no botão de login - usando IA para encontrar o botão
+            login_button = await page.must_get_element_by_prompt("botão de login ou entrar", llm=self.llm)
             await login_button.click()
             
             # Aguardar a navegação
@@ -83,20 +91,34 @@ class SIGAAActor:
 
             # Verificar se o login foi bem-sucedido
             final_page_url = await page.get_url()
-            page_content = await page.get_content()
+            page_content = await page.evaluate('() => document.body.innerText')
 
-            success_indicators = ["Portal do Discente", "Bem-vindo", "logout"]
+            success_indicators = ["Portal do Discente", "Bem-vindo", "logout", "discente"]
             login_successful = any(indicator.lower() in page_content.lower() for indicator in success_indicators)
 
-            if login_successful and "discente" in final_page_url.lower():
+            if login_successful:
                 self.is_logged_in_flag = True
+                self.current_page = page # Armazenar referência à página logada
                 
-                # Criar um agente para a página logada para usar funcionalidades de IA
-                self.agent = Agent(browser=self.browser, page=page, llm=self.llm)
-
-                # Tarefa para extrair informações do usuário
-                extraction_task = "Extraia o nome completo do usuário, a matrícula e o curso da página atual."
-                self.user_info = await self.agent.page.extract(extraction_task, dict, llm=self.llm)
+                # Extrair informações do usuário
+                try:
+                    # Verificar se estamos na página correta para extrair informações
+                    if "discente" in final_page_url.lower() or "portal" in final_page_url.lower():
+                        # Extrair informações do usuário usando IA
+                        user_info_prompt = "Extraia o nome completo do usuário, a matrícula e o curso da página atual. Retorne como um objeto JSON com campos: nome, matricula, curso."
+                        self.user_info = await page.extract_content(user_info_prompt, dict, llm=self.llm)
+                    else:
+                        # Navegar para uma página com informações do usuário
+                        await page.goto(f"{SIGAAConfig.BASE_URL}/sigaa/verPortalDiscente.do")
+                        await asyncio.sleep(3)
+                        user_info_prompt = "Extraia o nome completo do usuário, a matrícula e o curso da página atual. Retorne como um objeto JSON com campos: nome, matricula, curso."
+                        self.user_info = await page.extract_content(user_info_prompt, dict, llm=self.llm)
+                except Exception as e:
+                    logger.warning(f"Não foi possível extrair informações do usuário: {e}")
+                    self.user_info = {"nome": "Não identificado", "matricula": "Não identificada", "curso": "Não identificado"}
+                
+                # Criar agente para uso posterior nas operações
+                # O agente será criado sob demanda nos métodos que precisarem dele
                 
                 return {
                     "success": True,
@@ -105,11 +127,12 @@ class SIGAAActor:
                     "user_info": self.user_info,
                 }
             else:
-                error_message = "Falha no login. Verifique suas credenciais."
                 # Tenta extrair mensagem de erro da página
-                error_element = await page.get_element_by_css_selector(".msg-erro")
-                if error_element:
-                    error_message = await error_element.get_inner_text()
+                try:
+                    error_text = await page.evaluate('() => document.querySelector(".msg-erro")?.innerText || document.querySelector(".error")?.innerText || "Falha no login. Verifique suas credenciais."')
+                    error_message = error_text if error_text.strip() else "Falha no login. Verifique suas credenciais."
+                except Exception:
+                    error_message = "Falha no login. Verifique suas credenciais."
                 
                 return {
                     "success": False,
@@ -130,11 +153,11 @@ class SIGAAActor:
         return self.is_logged_in_flag
     
     async def navigate_to_section(self, section: str) -> Dict[str, Any]:
-        """Navega para uma seção específica do SIGAA usando o agente."""
-        if not self.is_logged_in_flag or not self.agent:
-            return {"success": False, "error": "Não está logado ou o agente não foi inicializado."}
+        """Navega para uma seção específica do SIGAA usando o browser diretamente."""
+        if not self.is_logged_in_flag or not self.current_page:
+            return {"success": False, "error": "Não está logado ou a página não está disponível."}
 
-        logger.info(f"Navegando para a seção '{section}' usando o agente.")
+        logger.info(f"Navegando para a seção '{section}'.")
 
         try:
             # Mapeamento de seções para termos mais descritivos para o LLM
@@ -149,14 +172,23 @@ class SIGAAActor:
             
             descriptive_section = section_map.get(section.lower(), section)
 
-            # A tarefa instrui o agente a encontrar e clicar no link da seção
+            # Usar IA para encontrar e clicar no link da seção
             task = f"No portal do discente, encontre e clique no link ou item de menu para '{descriptive_section}'."
             
-            # Reutiliza o agente existente, mas atualiza a tarefa
-            self.agent.task = task
-            result = await self.agent.run()
+            # Criar um agente temporário para esta tarefa específica
+            agent = Agent(
+                task=task,
+                llm=self.llm,
+                browser=self.browser,  # Usar o browser existente
+                page=self.current_page  # Usar a página atual
+            )
+            
+            result = await agent.run()
+            
+            # Atualizar a referência da página atual após a navegação
+            self.current_page = agent.page
 
-            final_page_url = self.agent.page.url
+            final_page_url = await agent.page.get_url()
 
             return {
                 "success": True,
@@ -167,13 +199,13 @@ class SIGAAActor:
             }
 
         except Exception as e:
-            logger.error(f"Erro ao navegar para a seção '{section}' com o agente: {e}")
+            logger.error(f"Erro ao navegar para a seção '{section}': {e}")
             return {"success": False, "error": str(e), "section": section}
     
     async def extract_grades(self) -> Dict[str, Any]:
         """Extrai notas das disciplinas"""
-        if not self.agent:
-            return {"success": False, "error": "Agente não inicializado."}
+        if not self.current_page:
+            return {"success": False, "error": "Página não está disponível."}
         try:
             # Usar IA para extrair dados estruturados de notas
             from pydantic import BaseModel
@@ -184,7 +216,7 @@ class SIGAAActor:
                 situacao: str
                 periodo: str
             
-            grades_data = await self.agent.page.extract(
+            grades_data = await self.current_page.extract_content(
                 "Extrair todas as notas e situações das disciplinas desta página",
                 List[Grade],
                 llm=self.llm
@@ -202,8 +234,8 @@ class SIGAAActor:
     
     async def extract_transcript(self) -> Dict[str, Any]:
         """Extrai histórico acadêmico"""
-        if not self.agent:
-            return {"success": False, "error": "Agente não inicializado."}
+        if not self.current_page:
+            return {"success": False, "error": "Página não está disponível."}
         try:
             from pydantic import BaseModel
             
@@ -215,7 +247,7 @@ class SIGAAActor:
                 situacao: str
                 periodo: str
             
-            transcript_data = await self.agent.page.extract(
+            transcript_data = await self.current_page.extract_content(
                 "Extrair histórico acadêmico completo com todas as disciplinas",
                 List[Subject],
                 llm=self.llm
@@ -233,10 +265,10 @@ class SIGAAActor:
     
     async def extract_enrollment_info(self) -> Dict[str, Any]:
         """Extrai informações de matrícula"""
-        if not self.agent:
-            return {"success": False, "error": "Agente não inicializado."}
+        if not self.current_page:
+            return {"success": False, "error": "Página não está disponível."}
         try:
-            enrollment_info = await self.agent.page.extract(
+            enrollment_info = await self.current_page.extract_content(
                 "Extrair informações de matrícula atual incluindo disciplinas matriculadas, horários e status",
                 dict,
                 llm=self.llm
@@ -254,10 +286,10 @@ class SIGAAActor:
     
     async def extract_general_info(self) -> Dict[str, Any]:
         """Extrai informações gerais da página atual"""
-        if not self.agent:
-            return {"success": False, "error": "Agente não inicializado."}
+        if not self.current_page:
+            return {"success": False, "error": "Página não está disponível."}
         try:
-            page_info = await self.agent.page.extract(
+            page_info = await self.current_page.extract_content(
                 "Extrair todas as informações importantes desta página do SIGAA",
                 dict,
                 llm=self.llm
@@ -274,11 +306,11 @@ class SIGAAActor:
             return {"success": False, "error": str(e)}
     
     async def download_document(self, doc_type: str, format: str = "pdf", semester: Optional[str] = None) -> Dict[str, Any]:
-        """Baixa documentos do SIGAA usando o agente."""
-        if not self.is_logged_in_flag or not self.agent:
-            return {"success": False, "error": "Não está logado ou o agente não foi inicializado."}
+        """Baixa documentos do SIGAA."""
+        if not self.is_logged_in_flag or not self.current_page:
+            return {"success": False, "error": "Não está logado ou a página não está disponível."}
 
-        logger.info(f"Tentando baixar documento '{doc_type}' com o agente.")
+        logger.info(f"Tentando baixar documento '{doc_type}'.")
 
         try:
             doc_map = {
@@ -293,14 +325,24 @@ class SIGAAActor:
             if semester:
                 task += f" para o período {semester}."
 
-            self.agent.task = task
-            await self.agent.run()
+            # Criar um agente temporário para esta tarefa específica
+            agent = Agent(
+                task=task,
+                llm=self.llm,
+                browser=self.browser,  # Usar o browser existente
+                page=self.current_page  # Usar a página atual
+            )
+            
+            await agent.run()
+            
+            # Atualizar a referência da página atual após a navegação
+            self.current_page = agent.page
             
             # Aguardar um tempo para o download iniciar e concluir
             await asyncio.sleep(10)
 
             # Verificar a pasta de downloads
-            download_path = Path(os.getenv("DOWNLOAD_PATH", "/app/data/downloads"))
+            download_path = Path(os.getenv("DOWNLOAD_PATH", "./downloads"))
             download_path.mkdir(parents=True, exist_ok=True)
             
             # Procurar o arquivo mais recente na pasta de downloads
@@ -309,8 +351,9 @@ class SIGAAActor:
             
             files_in_dir = list(download_path.glob(f"*.{format}"))
             # Adicionar busca em subdiretórios comuns de download do chrome
-            files_in_dir.extend(list(Path("/app/data/chrome-data/Default/Downloads").glob(f"*.{format}")))
-
+            chrome_download_path = Path("./chrome-data/Default/Downloads")
+            if chrome_download_path.exists():
+                files_in_dir.extend(list(chrome_download_path.glob(f"*.{format}")))
 
             for file in files_in_dir:
                 if file.exists() and file.stat().st_mtime > latest_time:
@@ -336,27 +379,35 @@ class SIGAAActor:
             }
 
         except Exception as e:
-            logger.error(f"Erro no download com o agente: {e}")
+            logger.error(f"Erro no download: {e}")
             return {"success": False, "error": str(e), "document_type": doc_type}
     
     async def execute_custom_task(self, task: str, max_steps: int = 20, return_data: bool = True) -> Dict[str, Any]:
-        """Executa tarefa personalizada usando o agente de IA."""
-        if not self.is_logged_in_flag or not self.agent:
-            return {"success": False, "error": "Não está logado ou o agente não foi inicializado."}
+        """Executa tarefa personalizada usando IA."""
+        if not self.is_logged_in_flag or not self.current_page:
+            return {"success": False, "error": "Não está logado ou a página não está disponível."}
 
         logger.info(f"Executando tarefa personalizada: {task}")
 
         try:
-            # Define a nova tarefa para o agente existente
-            self.agent.task = f"No SIGAA da UFPA, execute a seguinte tarefa: {task}"
-            self.agent.max_steps = max_steps
+            # Criar um agente temporário para esta tarefa específica
+            agent = Agent(
+                task=f"No SIGAA da UFPA, execute a seguinte tarefa: {task}",
+                llm=self.llm,
+                browser=self.browser,  # Usar o browser existente
+                page=self.current_page,  # Usar a página atual
+                max_steps=max_steps
+            )
             
-            result = await self.agent.run()
+            result = await agent.run()
+            
+            # Atualizar a referência da página atual após a execução da tarefa
+            self.current_page = agent.page
             
             extracted_data = None
             if return_data:
                 try:
-                    extracted_data = await self.agent.page.extract(
+                    extracted_data = await self.current_page.extract_content(
                         "Extrair dados relevantes da página atual após executar a tarefa",
                         dict,
                         llm=self.llm
@@ -372,22 +423,33 @@ class SIGAAActor:
             }
 
         except Exception as e:
-            logger.error(f"Erro na tarefa personalizada com o agente: {e}")
+            logger.error(f"Erro na tarefa personalizada: {e}")
             return {"success": False, "error": str(e), "task": task}
     
     async def get_notifications(self) -> Dict[str, Any]:
-        """Obtém notificações do SIGAA usando o agente."""
-        if not self.agent:
-            return {"success": False, "error": "Agente não inicializado."}
+        """Obtém notificações do SIGAA."""
+        if not self.current_page:
+            return {"success": False, "error": "Página não está disponível."}
         
-        logger.info("Obtendo notificações com o agente.")
+        logger.info("Obtendo notificações.")
         
         try:
             task = "Navegue até a área de notificações ou página principal e extraia todos os avisos, mensagens e notificações não lidas."
-            self.agent.task = task
-            await self.agent.run()
+            
+            # Criar um agente temporário para esta tarefa específica
+            agent = Agent(
+                task=task,
+                llm=self.llm,
+                browser=self.browser,  # Usar o browser existente
+                page=self.current_page  # Usar a página atual
+            )
+            
+            await agent.run()
 
-            notifications = await self.agent.page.extract(
+            # Atualizar a referência da página atual após a navegação
+            self.current_page = agent.page
+            
+            notifications = await self.current_page.extract_content(
                 "Extraia o texto de todas as notificações, avisos e mensagens importantes da página",
                 list,
                 llm=self.llm
@@ -400,22 +462,33 @@ class SIGAAActor:
             }
             
         except Exception as e:
-            logger.error(f"Erro ao obter notificações com o agente: {e}")
+            logger.error(f"Erro ao obter notificações: {e}")
             return {"success": False, "error": str(e)}
     
     async def get_class_schedule(self) -> Dict[str, Any]:
-        """Obtém horário de aulas usando o agente."""
-        if not self.agent:
-            return {"success": False, "error": "Agente não inicializado."}
+        """Obtém horário de aulas."""
+        if not self.current_page:
+            return {"success": False, "error": "Página não está disponível."}
 
-        logger.info("Obtendo horário de aulas com o agente.")
+        logger.info("Obtendo horário de aulas.")
 
         try:
             task = "Navegue até a seção de horário de aulas e extraia todas as informações: nome da disciplina, horários, professor e sala."
-            self.agent.task = task
-            await self.agent.run()
+            
+            # Criar um agente temporário para esta tarefa específica
+            agent = Agent(
+                task=task,
+                llm=self.llm,
+                browser=self.browser,  # Usar o browser existente
+                page=self.current_page  # Usar a página atual
+            )
+            
+            await agent.run()
 
-            schedule_data = await self.agent.page.extract(
+            # Atualizar a referência da página atual após a navegação
+            self.current_page = agent.page
+            
+            schedule_data = await self.current_page.extract_content(
                 "Extrair o horário de aulas completo, incluindo disciplinas, horários, professores e salas.",
                 dict,
                 llm=self.llm
@@ -427,43 +500,43 @@ class SIGAAActor:
             }
             
         except Exception as e:
-            logger.error(f"Erro ao obter horário com o agente: {e}")
+            logger.error(f"Erro ao obter horário: {e}")
             return {"success": False, "error": str(e)}
     
     async def take_screenshot(self, filename_prefix: str = "sigaa") -> str:
-        """Captura screenshot da página atual do agente."""
-        if not self.agent:
+        """Captura screenshot da página atual."""
+        if not self.current_page:
             return ""
         try:
-            screenshot_dir = Path(os.getenv("SCREENSHOT_PATH", "/app/data/screenshots"))
+            screenshot_dir = Path(os.getenv("SCREENSHOT_PATH", "./screenshots"))
             screenshot_dir.mkdir(parents=True, exist_ok=True)
             
             filename = f"{filename_prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
             screenshot_path = screenshot_dir / filename
             
-            await self.agent.page.screenshot(path=str(screenshot_path))
+            await self.current_page.screenshot(path=str(screenshot_path))
             
             logger.info(f"Screenshot salvo em: {screenshot_path}")
             return str(screenshot_path)
             
         except Exception as e:
-            logger.error(f"Erro ao capturar screenshot com o agente: {e}")
+            logger.error(f"Erro ao capturar screenshot: {e}")
             return ""
     
     async def check_status(self) -> Dict[str, Any]:
-        """Verifica o status da sessão do agente."""
+        """Verifica o status da sessão."""
         try:
-            agent_active = self.agent is not None and self.agent.page is not None
+            page_available = self.current_page is not None
             
             status = {
                 "success": True,
                 "logged_in": self.is_logged_in_flag,
                 "user_info": self.user_info,
-                "agent_active": agent_active
+                "page_available": page_available
             }
             
-            if agent_active:
-                current_url = self.agent.page.url
+            if page_available:
+                current_url = await self.current_page.get_url()
                 status["current_url"] = current_url
                 status["on_sigaa"] = "sigaa.ufpa.br" in current_url
 
@@ -474,20 +547,29 @@ class SIGAAActor:
             return {"success": False, "error": str(e), "logged_in": self.is_logged_in_flag}
     
     async def logout(self) -> Dict[str, Any]:
-        """Faz logout do SIGAA usando o agente."""
-        if not self.is_logged_in_flag or not self.agent:
+        """Faz logout do SIGAA."""
+        if not self.is_logged_in_flag or not self.current_page:
             self.is_logged_in_flag = False
             return {"success": True, "message": "Nenhuma sessão ativa para fazer logout."}
 
-        logger.info("Realizando logout com o agente.")
+        logger.info("Realizando logout.")
 
         try:
             task = "Encontre e clique no link de 'Sair' ou 'Logout' para encerrar a sessão."
-            self.agent.task = task
-            await self.agent.run()
+            
+            # Criar um agente temporário para esta tarefa específica
+            agent = Agent(
+                task=task,
+                llm=self.llm,
+                browser=self.browser,  # Usar o browser existente
+                page=self.current_page  # Usar a página atual
+            )
+            
+            await agent.run()
 
             self.is_logged_in_flag = False
             self.user_info = {}
+            self.current_page = None
             
             # Idealmente, o cleanup do agente deveria ser chamado aqui ou no 'cleanup' geral.
             await self.cleanup()
@@ -498,18 +580,20 @@ class SIGAAActor:
             }
 
         except Exception as e:
-            logger.error(f"Erro no logout com o agente: {e}")
+            logger.error(f"Erro no logout: {e}")
             self.is_logged_in_flag = False # Força o estado de deslogado
             return {"success": False, "error": str(e)}
     
     async def cleanup(self):
-        """Limpa os recursos do ator, incluindo o agente e o navegador."""
+        """Limpa os recursos do ator, incluindo o navegador."""
         logger.info("Iniciando limpeza do SIGAA Actor.")
         try:
-            if self.agent and self.agent.browser:
-                await self.agent.browser.close()
+            if self.browser:
+                await self.browser.stop()
             
             self.agent = None
+            self.browser = None
+            self.current_page = None
             self.is_logged_in_flag = False
             self.user_info = {}
             
