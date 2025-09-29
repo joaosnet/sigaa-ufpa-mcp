@@ -8,6 +8,7 @@ dependencies = [
     "browser-use>=0.7.9",
     "fastapi>=0.117.1",
     "fastmcp>=2.12.4",
+    "pypdf2>=3.0.1",
     "python-dotenv>=1.1.1",
     "uvicorn>=0.37.0",
 ]

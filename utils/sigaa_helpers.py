@@ -19,7 +19,7 @@ class SIGAAHelpers:
                 clean_text = clean_text.replace(',', '.')
             
             return float(clean_text)
-        except:
+        except Exception:
             return None
     
     @staticmethod
@@ -36,7 +36,7 @@ class SIGAAHelpers:
                     "period": period,
                     "full": f"{year}.{period}"
                 }
-        except:
+        except Exception:
             pass
         
         return {"full": semester_text}
