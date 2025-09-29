@@ -46,7 +46,7 @@ Este projeto é otimizado para execução com Docker, oferecendo dois modos prin
     cp .env.exemple .env
     nano .env
     ```
-    Preencha `SIGAA_USERNAME`, `SIGAA_PASSWORD` e `GEMINI_API_KEY`.
+    Preencha `SIGAA_USERNAME`, `SIGAA_PASSWORD` e `GOOGLE_API_KEY`.
 
 ### 3. Construindo a Imagem Docker
 
@@ -90,7 +90,7 @@ Adicione a seguinte configuração ao seu cliente MCP. Este método é o mais re
         "sigaa-ufpa-mcp:latest"
       ],
       "env": {
-        "GEMINI_API_KEY": "COLE_SUA_API_KEY_DO_GEMINI_AQUI",
+        "GOOGLE_API_KEY": "COLE_SUA_API_KEY_DO_GEMINI_AQUI",
         "SIGAA_USERNAME": "COLE_SEU_USUARIO_SIGAA_AQUI",
         "SIGAA_PASSWORD": "COLE_SUA_SENHA_SIGAA_AQUI",
         "MCP_TRANSPORT": "stdio",
@@ -171,4 +171,4 @@ Para problemas ou melhorias:
 1. Verifique os logs em `/app/logs/server.log`
 2. Confirme que as credenciais estão corretas
 3. Teste a conectividade com o SIGAA
-4. Verifique se a `GEMINI_API_KEY` está funcionando
+4. Verifique se a `GOOGLE_API_KEY` está funcionando

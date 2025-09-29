@@ -11,7 +11,7 @@
         "sigaa-ufpa-mcp:latest"
       ],
       "env": {
-        "GEMINI_API_KEY": "COLE_SUA_API_KEY_DO_GEMINI_AQUI",
+        "GOOGLE_API_KEY": "COLE_SUA_API_KEY_DO_GEMINI_AQUI",
         "SIGAA_USERNAME": "COLE_SEU_USUARIO_SIGAA_AQUI",
         "SIGAA_PASSWORD": "COLE_SUA_SENHA_SIGAA_AQUI",
         "MCP_TRANSPORT": "stdio",

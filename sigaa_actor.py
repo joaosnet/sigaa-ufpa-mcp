@@ -31,9 +31,9 @@ class SIGAAActor:
 
     def _setup_llm(self):
         """Configura o LLM para usar o Google Gemini."""
-        gemini_api_key = os.getenv("GEMINI_API_KEY")
+        gemini_api_key = os.getenv("GOOGLE_API_KEY")
         if not gemini_api_key:
-            raise ValueError("A variável de ambiente GEMINI_API_KEY não foi configurada.")
+            raise ValueError("A variável de ambiente GOOGLE_API_KEY não foi configurada.")
 
         self.llm = ChatGoogle(
             api_key=gemini_api_key,
