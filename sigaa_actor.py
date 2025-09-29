@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class SIGAAConfig:
     BASE_URL = "https://sigaa.ufpa.br"
-    LOGIN_URL = f"{BASE_URL}/sigaa/public/home.jsf"
+    LOGIN_URL = f"{BASE_URL}/sigaa/verTelaLogin.do"
     MOBILE_URL = f"{BASE_URL}/sigaa/mobile/touch/public/principal.jsf"
 
 class SIGAAActor:
@@ -37,8 +37,7 @@ class SIGAAActor:
 
         self.llm = ChatGoogle(
             api_key=gemini_api_key,
-            model="gemini-1.5-pro",
-            temperature=0.1
+            model="gemini-flash-latest",
         )
 
     async def initialize(self):
