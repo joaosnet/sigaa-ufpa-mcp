@@ -16,17 +16,6 @@ warnings.filterwarnings("ignore", message="websockets.server.WebSocketServerProt
 # Carregar variáveis de ambiente
 load_dotenv()
 
-# Configurar logging
-logging.basicConfig(
-    level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('/app/logs/server.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
-
 # Inicializar FastMCP
 mcp = FastMCP("SIGAA UFPA MCP Server")
 
@@ -92,11 +81,11 @@ async def sigaa_login(
         
         result = await actor.login(username, password, force_new_session)
         
-        logger.info(f"Login attempt result: {result['success']}")
+        logging.info(f"Login attempt result: {result['success']}")
         return result
         
     except Exception as e:
-        logger.error(f"Erro no login SIGAA: {e}")
+        logging.error(f"Erro no login SIGAA: {e}")
         return {
             "success": False,
             "error": str(e),
@@ -152,7 +141,7 @@ async def sigaa_navigate_and_extract(
         return result
         
     except Exception as e:
-        logger.error(f"Erro na navegação SIGAA: {e}")
+        logging.error(f"Erro na navegação SIGAA: {e}")
         return {
             "success": False,
             "error": str(e),
@@ -197,12 +186,12 @@ async def sigaa_download_document(
                 text_content = await pdf_extractor.extract_text_from_pdf(result["file_path"])
                 result["text_content"] = text_content[:2000]  # Primeiros 2000 caracteres
             except Exception as e:
-                logger.warning(f"Não foi possível extrair texto do PDF: {e}")
+                logging.warning(f"Não foi possível extrair texto do PDF: {e}")
         
         return result
         
     except Exception as e:
-        logger.error(f"Erro no download de documento: {e}")
+        logging.error(f"Erro no download de documento: {e}")
         return {
             "success": False,
             "error": str(e),
@@ -242,7 +231,7 @@ async def sigaa_custom_task(
         return result
         
     except Exception as e:
-        logger.error(f"Erro na tarefa personalizada: {e}")
+        logging.error(f"Erro na tarefa personalizada: {e}")
         return {
             "success": False,
             "error": str(e),
@@ -272,7 +261,7 @@ async def sigaa_get_notifications() -> Dict[str, Any]:
         return result
         
     except Exception as e:
-        logger.error(f"Erro ao obter notificações: {e}")
+        logging.error(f"Erro ao obter notificações: {e}")
         return {
             "success": False,
             "error": str(e)
@@ -301,7 +290,7 @@ async def sigaa_get_class_schedule() -> Dict[str, Any]:
         return result
         
     except Exception as e:
-        logger.error(f"Erro ao obter horário: {e}")
+        logging.error(f"Erro ao obter horário: {e}")
         return {
             "success": False,
             "error": str(e)
@@ -321,7 +310,7 @@ async def sigaa_check_status() -> Dict[str, Any]:
         return result
         
     except Exception as e:
-        logger.error(f"Erro ao verificar status: {e}")
+        logging.error(f"Erro ao verificar status: {e}")
         return {
             "success": False,
             "error": str(e),
@@ -349,7 +338,7 @@ async def sigaa_logout() -> Dict[str, Any]:
         return result
         
     except Exception as e:
-        logger.error(f"Erro no logout: {e}")
+        logging.error(f"Erro no logout: {e}")
         return {
             "success": False,
             "error": str(e)
@@ -369,16 +358,16 @@ if __name__ == "__main__":
         transport_mode = os.getenv("MCP_TRANSPORT", "stdio")
         
         if transport_mode == "http":
-            logger.info("Iniciando servidor MCP em modo HTTP...")
+            logging.info("Iniciando servidor MCP em modo HTTP...")
             mcp.run(transport="http", host="0.0.0.0", port=8000)
         elif transport_mode == "stdio":
-            logger.info("Iniciando servidor MCP em modo stdio...")
+            logging.info("Iniciando servidor MCP em modo stdio...")
             mcp.run(transport="stdio")
         else:
-            logger.error(f"Modo de transporte desconhecido: {transport_mode}. Use 'stdio' ou 'http'.")
+            logging.error(f"Modo de transporte desconhecido: {transport_mode}. Use 'stdio' ou 'http'.")
             # Inicia em stdio como fallback seguro para clientes MCP
             mcp.run(transport="stdio")
     except KeyboardInterrupt:
-        logger.info("Encerrando servidor...")
+        logging.info("Encerrando servidor...")
     finally:
         asyncio.run(cleanup())
