@@ -370,7 +370,7 @@ if __name__ == "__main__":
         
         if transport_mode == "http":
             logger.info("Iniciando servidor MCP em modo HTTP...")
-            mcp.run(transport="http", host="0.0.0.0", port=8000, always_allow_all=True)
+            mcp.run(transport="http", host="0.0.0.0", port=8000)
         elif transport_mode == "stdio":
             logger.info("Iniciando servidor MCP em modo stdio...")
             mcp.run(transport="stdio")
