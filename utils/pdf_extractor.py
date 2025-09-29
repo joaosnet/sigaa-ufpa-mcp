@@ -1,4 +1,4 @@
-import PyPDF2
+import pypdf
 import logging
 from typing import Optional
 from pathlib import Path
@@ -22,9 +22,9 @@ class PDFExtractor:
             async with aiofiles.open(pdf_path, 'rb') as file:
                 pdf_content = await file.read()
                 
-                # Usar PyPDF2 para extrair texto
+                # Usar pypdf para extrair texto
                 from io import BytesIO
-                pdf_file = PyPDF2.PdfReader(BytesIO(pdf_content))
+                pdf_file = pypdf.PdfReader(BytesIO(pdf_content))
                 
                 for page_num in range(len(pdf_file.pages)):
                     page = pdf_file.pages[page_num]

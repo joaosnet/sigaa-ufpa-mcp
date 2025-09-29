@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   sigaa-mcp-server:
     build: .
@@ -7,6 +5,7 @@ services:
     ports:
       - "8000:8000"
       - "5900:5900"  # VNC port
+      - "6080:6080"  # noVNC port for web access
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - SIGAA_USERNAME=${SIGAA_USERNAME}
@@ -21,11 +20,6 @@ services:
     restart: unless-stopped
     networks:
       - sigaa-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 
 networks:

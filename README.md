@@ -70,6 +70,23 @@ docker-compose up -d
 - Você pode monitorar os logs com `docker-compose logs -f`.
 - A interface gráfica pode ser acessada via VNC no endereço `localhost:5900` (senha padrão: `browser-use`).
 
+### Acessando o Servidor VNC
+
+Para visualizar a interface gráfica do navegador automatizado:
+
+1. **Instale um cliente VNC** em seu computador (como TigerVNC Viewer, RealVNC, UltraVNC, ou qualquer outro cliente VNC de sua preferência)
+
+2. **Conecte-se ao servidor VNC** usando:
+   - Endereço: `localhost:5900` (já que a porta 5900 do contêiner está mapeada para a porta 5900 do host)
+   - Senha: `browser-use` (padrão definido no Dockerfile)
+
+3. **Visualize as automações** em execução no navegador que está sendo controlado pelo sistema de automação do SIGAA.
+
+O acesso VNC é especialmente útil para:
+- Monitorar visualmente as automações em execução
+- Depurar problemas de navegação
+- Verificar visualmente se as tarefas estão sendo executadas corretamente
+
 #### b) Modo Cliente MCP (via `docker run`)
 
 Este modo é para integrar o servidor a um cliente MCP, como o Claude Desktop, que se comunica via `stdio`.

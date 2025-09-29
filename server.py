@@ -9,6 +9,9 @@ from dotenv import load_dotenv
 
 from sigaa_actor import SIGAAActor
 from utils.pdf_extractor import PDFExtractor
+import warnings
+warnings.filterwarnings("ignore", message="websockets.legacy is deprecated")
+warnings.filterwarnings("ignore", message="websockets.server.WebSocketServerProtocol is deprecated")
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -367,7 +370,7 @@ if __name__ == "__main__":
         
         if transport_mode == "http":
             logger.info("Iniciando servidor MCP em modo HTTP...")
-            mcp.run(transport="http", host="0.0.0.0", port=8000)
+            mcp.run(transport="http", host="0.0.0.0", port=8000, always_allow_all=True)
         elif transport_mode == "stdio":
             logger.info("Iniciando servidor MCP em modo stdio...")
             mcp.run(transport="stdio")
