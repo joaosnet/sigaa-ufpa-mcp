@@ -59,9 +59,9 @@ async def get_sigaa_actor() -> SIGAAActor:
 
 @mcp.tool()
 async def sigaa_login(
-    username: Optional[str] = None, 
-    password: Optional[str] = None,
-    force_new_session: bool = False
+    username: Optional[str] = Field(None, description="Nome de usuário (opcional, usa .env se não fornecido)"), 
+    password: Optional[str] = Field(None, description="Senha (opcional, usa .env se não fornecida)"),
+    force_new_session: bool = Field(False, description="Forçar nova sessão mesmo se já logado")
 ) -> Dict[str, Any]:
     """
     Faz login no SIGAA UFPA usando as credenciais fornecidas ou do ambiente.

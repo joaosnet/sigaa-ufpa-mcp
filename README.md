@@ -74,6 +74,8 @@ docker-compose up -d
 
 Para visualizar a interface gráfica do navegador automatizado:
 
+Acesse http://localhost:6080/vnc.html?autoconnect=1&resize=scale&password=browser-use
+
 1. **Instale um cliente VNC** em seu computador (como TigerVNC Viewer, RealVNC, UltraVNC, ou qualquer outro cliente VNC de sua preferência)
 
 2. **Conecte-se ao servidor VNC** usando:
