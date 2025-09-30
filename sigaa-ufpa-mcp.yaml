@@ -1,3 +1,8 @@
+version: 2
+
+name: sigaa-ufpa-mcp
+
+displayName: SIGAA UFPA MCP Server
 registry:
   sigaa-ufpa:
     dateAdded: "2025-09-30T17:20:00Z"
