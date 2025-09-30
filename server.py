@@ -198,7 +198,7 @@ async def listar_disciplinas_ofertadas(
     """
     Lista todas as disciplinas ofertadas no semestre atual para o curso e turno informados.
     """
-    prompt = """
+    prompt = f""" Para o curso de {curso} e turno {turno}, liste todas as disciplinas ofertadas no semestre atual.
     # Como entrar no SIGAA UFPA e Listar disciplinas ofertas do semestre
 ## **1. Acessando o Portal do Discente**
 
