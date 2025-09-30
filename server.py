@@ -22,43 +22,6 @@ startup_status = {"success": False, "message": "", "logged_in": False}
 
 BASE_URL = "https://sigaa.ufpa.br"
 
-descricao = (
-    "Guia de Prompting para SIGAA:\n"
-    "\n"
-    "Dicas para criar prompts eficazes:\n"
-    "\n"
-    "1. Seja Específico (Recomendado):\n"
-    "   ✅ Exemplo:\n"
-    "   1. Acesse https://quotes.toscrape.com/\n"
-    "   2. Use a ação extract_structured_data com a query 'primeiras 3 citações e autores'\n"
-    "   3. Salve em quotes.csv usando write_file\n"
-    "   4. Pesquise no Google a primeira citação e descubra quando foi escrita\n"
-    "\n"
-    "   ❌ Evite prompts abertos demais, como: 'Vá para a web e ganhe dinheiro'\n"
-    "\n"
-    "2. Nomeie Ações Diretamente:\n"
-    "   - Referencie ações pelo nome quando souber o que precisa:\n"
-    "   1. Use search para encontrar 'Python tutorials'\n"
-    "   2. Use click_element_by_index para abrir o primeiro resultado\n"
-    "   3. Use scroll para descer 2 páginas\n"
-    "   4. Use extract_structured_data para extrair os 5 primeiros itens\n"
-    "   5. Use send_keys com 'Tab Tab ArrowDown Enter'\n"
-    "\n"
-    "3. Resolva problemas de interação com navegação por teclado:\n"
-    "   - Se não conseguir clicar em um botão, tente:\n"
-    "     1. send_keys com 'Tab Tab Enter'\n"
-    "     2. Ou 'ArrowDown ArrowDown Enter'\n"
-    "\n"
-    "4. Integre Ações Customizadas:\n"
-    "   - Exemplo: get_2fa_code para autenticação em 2 fatores\n"
-    "   - No prompt: 'Quando solicitado 2FA, use a ação get_2fa_code'\n"
-    "\n"
-    "5. Recuperação de Erros:\n"
-    "   - Exemplo: Se a navegação falhar, use busca alternativa ou go_back\n"
-    "\n"
-    "Seja sempre claro e específico sobre as ações desejadas. Veja a documentação para a lista completa de ações disponíveis.\n"
-)
-
 
 llm = ChatGoogle(
     api_key=os.environ.get("GOOGLE_API_KEY"),
@@ -173,31 +136,142 @@ def get_status_login():
         "logged_in": startup_status["logged_in"],
     }
 
-
+#Ferramenta 0: Reiniciar sessão do navegador e relogar
 @mcp.tool()
-async def pegar_conteudo_sigaa(
-    prompt: str = Field(..., description=descricao),
-) -> Dict[str, Any]:
+async def reiniciar_sessao() -> Dict[str, Any]:
+    """
+    Reinicia a sessão do navegador e realiza o login novamente.
+    """
+    global startup_status
     try:
-        sensitive_data = {
-            "x_user": os.environ.get("SIGAA_USERNAME"),
-            "x_pass": os.environ.get("SIGAA_PASSWORD"),
+        await browser.stop()
+        await login_sigaa()
+        return {
+            "success": startup_status["success"],
+            "message": startup_status["message"],
+            "logged_in": startup_status["logged_in"],
         }
+    except Exception as e:
+        logging.error(f"Erro ao reiniciar sessão: {e}")
+        return {"success": False, "error": str(e)}
 
-        # prompt += f"if need Log into {LOGIN_URL} with username x_user and password x_pass"
+
+# Ferramenta 1: Baixar histórico escolar em PDF
+@mcp.tool()
+async def baixar_historico_escolar() -> Dict[str, Any]:
+    """
+    Baixa o histórico escolar completo do aluno em PDF e retorna o caminho do arquivo salvo.
+    """
+    prompt = (
+        "1. Acesse o SIGAA e navegue até a área do discente.\n"
+        "2. Localize e acesse a opção 'Histórico Escolar'.\n"
+        "3. Clique na opção para gerar/baixar o histórico em PDF.\n"
+        "4. Salve o arquivo como 'historico_escolar.pdf' usando write_file action.\n"
+        "5. Retorne o caminho do arquivo salvo."
+    )
+    # sensitive_data = {
+    #     "x_user": os.environ.get("SIGAA_USERNAME"),
+    #     "x_pass": os.environ.get("SIGAA_PASSWORD"),
+    # }
+    try:
         result = await Agent(
             task=prompt,
             browser=browser,
-            sensitive_data=sensitive_data,
+            # sensitive_data=sensitive_data,
             llm=llm,
         ).run()
-
-        logging.info(f"Login attempt result: {result}")
         return result
-
     except Exception as e:
-        logging.error(f"Erro no login SIGAA: {e}")
-        return {"success": False, "error": str(e), "logged_in": False}
+        logging.error(f"Erro ao baixar histórico escolar: {e}")
+        return {"success": False, "error": str(e)}
+
+# Ferramenta 2: Listar disciplinas ofertadas no semestre atual
+@mcp.tool()
+async def listar_disciplinas_ofertadas(
+    curso: str = Field(..., description="Nome do curso (ex: Engenharia de Computação)"),
+    turno: str = Field("", description="Turno (ex: Matutino, Noturno, opcional)")
+) -> Dict[str, Any]:
+    """
+    Lista todas as disciplinas ofertadas no semestre atual para o curso e turno informados.
+    """
+    prompt = (
+        f"1. Acesse o SIGAA e navegue até a área de consulta de disciplinas ofertadas.\n"
+        f"2. Filtre pelo curso '{curso}'"
+        + (f" e turno '{turno}'" if turno else "")
+        + ".\n3. Extraia nome, código, professor e horários de todas as disciplinas ofertadas neste semestre.\n"
+        "4. Retorne os dados em formato de lista de dicionários."
+    )
+    # sensitive_data = {
+    #     "x_user": os.environ.get("SIGAA_USERNAME"),
+    #     "x_pass": os.environ.get("SIGAA_PASSWORD"),
+    # }
+    try:
+        result = await Agent(
+            task=prompt,
+            browser=browser,
+            # sensitive_data=sensitive_data,
+            llm=llm,
+        ).run()
+        return result
+    except Exception as e:
+        logging.error(f"Erro ao listar disciplinas ofertadas: {e}")
+        return {"success": False, "error": str(e)}
+
+# Ferramenta 3: Exportar horários de aula do aluno em CSV
+@mcp.tool()
+async def exportar_horarios_csv() -> Dict[str, Any]:
+    """
+    Exporta todos os horários de aula do aluno no semestre atual em formato CSV.
+    """
+    prompt = (
+        "1. Acesse o SIGAA e navegue até a área de horários do discente.\n"
+        "2. Extraia todas as disciplinas matriculadas, dias da semana, horários e salas.\n"
+        "3. Salve os dados em 'horarios_aula.csv' usando write_file action.\n"
+        "4. Retorne o caminho do arquivo salvo."
+    )
+    # sensitive_data = {
+    #     "x_user": os.environ.get("SIGAA_USERNAME"),
+    #     "x_pass": os.environ.get("SIGAA_PASSWORD"),
+    # }
+    try:
+        result = await Agent(
+            task=prompt,
+            browser=browser,
+            # sensitive_data=sensitive_data,
+            llm=llm,
+        ).run()
+        return result
+    except Exception as e:
+        logging.error(f"Erro ao exportar horários: {e}")
+        return {"success": False, "error": str(e)}
+
+# Ferramenta 4: Listar avisos/comunicados recentes das turmas do aluno
+@mcp.tool()
+async def listar_avisos_turmas() -> Dict[str, Any]:
+    """
+    Lista todos os avisos/comunicados recentes das turmas em que o aluno está matriculado.
+    """
+    prompt = (
+        "1. Acesse o SIGAA e navegue até a área de turmas/disciplina do discente.\n"
+        "2. Para cada turma, acesse a seção de avisos/comunicados.\n"
+        "3. Extraia os avisos/comunicados publicados nos últimos 30 dias, incluindo título, data, disciplina e conteúdo.\n"
+        "4. Retorne os dados em formato de lista de dicionários."
+    )
+    # sensitive_data = {
+    #     "x_user": os.environ.get("SIGAA_USERNAME"),
+    #     "x_pass": os.environ.get("SIGAA_PASSWORD"),
+    # }
+    try:
+        result = await Agent(
+            task=prompt,
+            browser=browser,
+            # sensitive_data=sensitive_data,
+            llm=llm,
+        ).run()
+        return result
+    except Exception as e:
+        logging.error(f"Erro ao listar avisos das turmas: {e}")
+        return {"success": False, "error": str(e)}
 
 
 if __name__ == "__main__":
