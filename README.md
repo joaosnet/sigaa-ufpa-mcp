@@ -55,6 +55,27 @@ docker build -t sigaa-ufpa-mcp .
 
 #### a) Modo Serviço Web (via Docker Compose)
 
+```json
+{
+  "mcp_servers": {
+    "sigaa-ufpa": {
+      "name": "SIGAA UFPA MCP Server (Docker Compose)",
+      "type": "streamable-http",
+      "url": "http://localhost:8000/mcp",
+      "disabled": false,
+      "alwaysAllow": [
+        "reiniciar_sessao",
+        "baixar_historico_escolar",
+        "exportar_horarios_csv",
+        "listar_avisos_turmas",
+        "listar_disciplinas_ofertadas"
+      ],
+      "timeout": 1800
+    }
+  }
+}
+```
+
 Ideal para manter o servidor rodando como um serviço de fundo, com reinicialização automática e acesso via VNC.
 
 ```bash
@@ -112,7 +133,15 @@ Adicione a seguinte configuração ao seu cliente MCP. Este método é o mais re
         "MCP_TRANSPORT": "stdio",
         "LOG_LEVEL": "INFO",
         "CHROME_HEADLESS": "true"
-      }
+      },
+      "alwaysAllow": [
+        "reiniciar_sessao",
+        "baixar_historico_escolar",
+        "exportar_horarios_csv",
+        "listar_avisos_turmas",
+        "listar_disciplinas_ofertadas"
+      ],
+      "timeout": 1800
     }
   }
 }
