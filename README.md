@@ -70,6 +70,14 @@ docker build -t sigaa-ufpa-mcp .
         "listar_avisos_turmas",
         "listar_disciplinas_ofertadas"
       ],
+      "env": {
+        "GOOGLE_API_KEY": "COLE_SUA_API_KEY_DO_GEMINI_AQUI",
+        "SIGAA_USERNAME": "COLE_SEU_USUARIO_SIGAA_AQUI",
+        "SIGAA_PASSWORD": "COLE_SUA_SENHA_SIGAA_AQUI",
+        "MCP_TRANSPORT": "stdio",
+        "LOG_LEVEL": "INFO",
+        "CHROME_HEADLESS": "true"
+      },
       "timeout": 1800
     }
   }
@@ -116,7 +124,7 @@ Adicione a seguinte configuração ao seu cliente MCP. Este método é o mais re
 ```json
 {
   "mcp_servers": {
-    "sigaa-ufpa": {
+        "sigaa-ufpa-docker": {
       "name": "SIGAA UFPA MCP Server",
       "type": "stdio",
       "command": "docker",
@@ -124,6 +132,12 @@ Adicione a seguinte configuração ao seu cliente MCP. Este método é o mais re
         "run",
         "--rm",
         "-i",
+        "-p",
+        "8000:8000",
+        "-p",
+        "5900:5900",
+        "-p",
+        "6080:6080",
         "sigaa-ufpa-mcp:latest"
       ],
       "env": {
@@ -141,7 +155,8 @@ Adicione a seguinte configuração ao seu cliente MCP. Este método é o mais re
         "listar_avisos_turmas",
         "listar_disciplinas_ofertadas"
       ],
-      "timeout": 1800
+      "timeout": 1800,
+      "disabled": false
     }
   }
 }
