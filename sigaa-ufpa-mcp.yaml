@@ -45,6 +45,6 @@ registry:
       - name: listar_disciplinas_ofertadas
       - name: exportar_horarios_csv
       - name: listar_avisos_turmas
-    toolsUrl: ""
+    toolsUrl: http://desktop.docker.com/mcp/catalog/v2/tools/git.json
     type: server
-    upstream: ""
+    upstream: https://github.com/modelcontextprotocol/servers
