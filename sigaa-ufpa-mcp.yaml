@@ -1,0 +1,44 @@
+version: 2
+
+name: sigaa-ufpa-mcp
+
+displayName: SIGAA UFPA MCP Server
+
+registry:
+  sigaa-ufpa-mcp:
+    description: "Servidor MCP para automação do SIGAA da UFPA com browser-use e FastMCP"
+    title: "SIGAA UFPA MCP"
+    type: server
+    dateAdded: "2025-09-30T17:20:00Z"
+    image: joaosnet/sigaa-ufpa-mcp:latest
+    ref: ""
+    readme: ""
+    toolsUrl: ""
+    source: ""
+    upstream: ""
+    icon: ""
+    tools:
+      - name: reiniciar_sessao
+      - name: baixar_historico_escolar
+      - name: listar_disciplinas_ofertadas
+      - name: exportar_horarios_csv
+      - name: listar_avisos_turmas
+    secrets:
+      - name: GOOGLE_API_KEY
+        env: GOOGLE_API_KEY
+        example: "your-gemini-api-key-here"
+      - name: SIGAA_USERNAME
+        env: SIGAA_USERNAME
+        example: "seu.usuario.ufpa"
+      - name: SIGAA_PASSWORD
+        env: SIGAA_PASSWORD
+        example: "suaSenhaSegura123"
+    metadata:
+      category: automation
+      tags:
+        - sigaa
+        - ufpa
+        - automation
+        - education
+      license: MIT
+      owner: local

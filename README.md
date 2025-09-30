@@ -124,7 +124,7 @@ Adicione a seguinte configuração ao seu cliente MCP. Este método é o mais re
 ```json
 {
   "mcp_servers": {
-        "sigaa-ufpa-docker": {
+      "sigaa-ufpa-docker": {
       "name": "SIGAA UFPA MCP Server",
       "type": "stdio",
       "command": "docker",
