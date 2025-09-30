@@ -144,7 +144,7 @@ Adicione a seguinte configuração ao seu cliente MCP. Este método é o mais re
         "5900:5900",
         "-p",
         "6080:6080",
-        "sigaa-ufpa-mcp:latest"
+        "joaosnet/sigaa-ufpa-mcp"
       ],
       "alwaysAllow": [
         "reiniciar_sessao",
