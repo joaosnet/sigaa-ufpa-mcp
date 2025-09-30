@@ -36,6 +36,7 @@ browser = Browser(
 #     "x_pass": os.environ.get("SIGAA_PASSWORD"),
 # }
 
+
 async def esperar_elemento(
     page, selector: str, timeout: float = 15.0, poll_interval: float = 0.5
 ):
@@ -139,7 +140,8 @@ def get_status_login():
         "logged_in": startup_status["logged_in"],
     }
 
-#Ferramenta 0: Reiniciar sessão do navegador e relogar
+
+# Ferramenta 0: Reiniciar sessão do navegador e relogar
 @mcp.tool()
 async def reiniciar_sessao() -> Dict[str, Any]:
     """
@@ -165,13 +167,14 @@ async def baixar_historico_escolar() -> Dict[str, Any]:
     """
     Baixa o histórico escolar completo do aluno em PDF e retorna o caminho do arquivo salvo.
     """
-    prompt = (
-        "1. Acesse o SIGAA e navegue até a área do discente.\n"
-        "2. Localize e acesse a opção 'Histórico Escolar'.\n"
-        "3. Clique na opção para gerar/baixar o histórico em PDF.\n"
-        "4. Salve o arquivo como 'historico_escolar.pdf' usando write_file action.\n"
-        "5. Retorne o caminho do arquivo salvo."
-    )
+
+    prompt = """
+    1. Se aparecer Selecione o Ano-Período mais atual
+    2. Se aparecer Selecione o Portal do Discente
+    3. Clique em Ensino
+    4. Clique em Emitir Histórico
+    5. O Histórico será salvo automaticamente no navegador
+    Obs.: Durante o período de processamento de matricula não é possível emitir histórico"""
 
     try:
         result = await Agent(
@@ -185,22 +188,70 @@ async def baixar_historico_escolar() -> Dict[str, Any]:
         logging.error(f"Erro ao baixar histórico escolar: {e}")
         return {"success": False, "error": str(e)}
 
+
 # Ferramenta 2: Listar disciplinas ofertadas no semestre atual
 @mcp.tool()
 async def listar_disciplinas_ofertadas(
     curso: str = Field(..., description="Nome do curso (ex: Engenharia de Computação)"),
-    turno: str = Field("", description="Turno (ex: Matutino, Noturno, opcional)")
+    turno: str = Field("", description="Turno (ex: Matutino, Noturno, opcional)"),
 ) -> Dict[str, Any]:
     """
     Lista todas as disciplinas ofertadas no semestre atual para o curso e turno informados.
     """
-    prompt = (
-        f"1. Acesse o SIGAA e navegue até a área de consulta de disciplinas ofertadas.\n"
-        f"2. Filtre pelo curso '{curso}'"
-        + (f" e turno '{turno}'" if turno else "")
-        + ".\n3. Extraia nome, código, professor e horários de todas as disciplinas ofertadas neste semestre.\n"
-        "4. Retorne os dados em formato de lista de dicionários."
-    )
+    prompt = """
+    # Como entrar no SIGAA UFPA e Listar disciplinas ofertas do semestre
+## **1. Acessando o Portal do Discente**
+
+### **Passo 1: Selecionar Período Letivo**
+- Após o login, **selecione o Ano-Período mais atual** (exemplo: 2025.2)
+- Esta informação aparecerá logo após o login ou poderá ser alterada no menu principal
+
+### **Passo 2: Acessar Portal do Discente**
+- Na tela principal, clique em **"Portal do Discente"**
+- Esta opção dará acesso a todas as funcionalidades acadêmicas do estudante
+
+## **2. Consultando Disciplinas Ofertas**
+
+### **Método 1: Através do Menu Ensino**
+
+#### **Passo 1: Acessar Menu Ensino**
+- No Portal do Discente, clique na aba **"Ensino"**
+
+#### **Passo 2: Acessar Consultas Gerais**
+- Dentro do menu Ensino, clique em **"Consultas Gerais"**
+- No Consultas Gerais você encontrará:
+  - Consultar Curso
+  - Consultar Componente Curricular
+  - Consultar Estrutura Curricular
+  - Consultar Turma
+  - Consultar Unidades Academicas
+#### **Passo 3: Consultar Turma**
+- Clique em **"Consultar Turma"**
+- Na página de Consulta de Turmas, utilize os filtros para buscar por:
+  - **Ofertadas ao curso:**: Selecione o curso desejado (ex: ENGENHARIA DA COMPUTACAO/ITEC - BELÉM)
+  - **Ano-Período:**: Selecione a caixa para o semestre atual
+  - **Unidade:**: Selecione a unidade acadêmica correspondente ao curso
+  - **Nome do componente:**: Deixe em branco para listar todas as disciplinas
+
+
+### **Método 2: Consulta Pública de Turmas**
+
+#### **Passo Alternativo: Consultar Turmas do Semestre**
+- Acesse diretamente: https://sigaa.ufpa.br/sigaa/public/turmas/listar.jsf?aba=p-ensino
+- Esta página permite consultar **todas as turmas oferecidas pela instituição**
+- Utilize os filtros disponíveis para buscar por:
+  - **Curso específico**
+  - **Turno** (matutino, vespertino, noturno)
+  - **Período/semestre**
+  - **Instituto/Faculdade**
+
+### **Método 3: Consulta de Componentes Curriculares**
+- Acesse: https://sigaa.ufpa.br/sigaa/public/componentes/busca_componentes.jsf?aba=p-ensino
+- Esta página permite consultar **todos os componentes curriculares (disciplinas)** oferecidos
+- Filtre por curso, instituto ou nome da disciplina
+- Visualize detalhes e programas atuais das disciplinas
+    """
+    
     try:
         result = await Agent(
             task=prompt,
@@ -213,18 +264,21 @@ async def listar_disciplinas_ofertadas(
         logging.error(f"Erro ao listar disciplinas ofertadas: {e}")
         return {"success": False, "error": str(e)}
 
+
 # Ferramenta 3: Exportar horários de aula do aluno em CSV
 @mcp.tool()
 async def exportar_horarios_csv() -> Dict[str, Any]:
     """
     Exporta todos os horários de aula do aluno no semestre atual em formato CSV.
     """
-    prompt = (
-        "1. Acesse o SIGAA e navegue até a área de horários do discente.\n"
-        "2. Extraia todas as disciplinas matriculadas, dias da semana, horários e salas.\n"
-        "3. Salve os dados em 'horarios_aula.csv' usando write_file action.\n"
-        "4. Retorne o caminho do arquivo salvo."
-    )
+    prompt = """
+    Obs.: Os horários de aula podem ser encontrados na seção de "Turmas do Semestre" e no Atestado de Matrícula.
+    1. Se aparecer Selecione o Ano-Período mais atual
+    2. Se aparecer Selecione o Portal do Discente
+    3. Se necessário, clique em Ensino
+    4. Se necessário, clique em Emitir Atestado de Matrícula(Note que quando o atestado é emitido, é aberta outra aba no navegador)
+    """
+
     try:
         result = await Agent(
             task=prompt,
@@ -237,18 +291,23 @@ async def exportar_horarios_csv() -> Dict[str, Any]:
         logging.error(f"Erro ao exportar horários: {e}")
         return {"success": False, "error": str(e)}
 
+
 # Ferramenta 4: Listar avisos/comunicados recentes das turmas do aluno
 @mcp.tool()
 async def listar_avisos_turmas() -> Dict[str, Any]:
     """
     Lista todos os avisos/comunicados recentes das turmas em que o aluno está matriculado.
     """
-    prompt = (
-        "1. Acesse o SIGAA e navegue até a área de turmas/disciplina do discente.\n"
-        "2. Para cada turma, acesse a seção de avisos/comunicados.\n"
-        "3. Extraia os avisos/comunicados publicados nos últimos 30 dias, incluindo título, data, disciplina e conteúdo.\n"
-        "4. Retorne os dados em formato de lista de dicionários."
-    )
+    prompt = """
+    Obs.: Os horários de aula podem ser encontrados na seção de "Turmas do Semestre" e no Atestado de Matrícula.
+    1. Se aparecer Selecione o Ano-Período mais atual
+    2. Se aparecer Selecione o Portal do Discente
+    E em Turmas do Semestre em cada turma nessa sessão:
+    1. Clique na turma
+    2. Clique em Notícias
+    3. Extraia todos os avisos/comunicados recentes
+    4. Repita para todas as turmas
+    """
     try:
         result = await Agent(
             task=prompt,
