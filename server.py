@@ -31,7 +31,10 @@ browser = Browser(
     allowed_domains=[BASE_URL],
     keep_alive=True,
 )
-
+# sensitive_data = {
+#     "x_user": os.environ.get("SIGAA_USERNAME"),
+#     "x_pass": os.environ.get("SIGAA_PASSWORD"),
+# }
 
 async def esperar_elemento(
     page, selector: str, timeout: float = 15.0, poll_interval: float = 0.5
@@ -169,10 +172,7 @@ async def baixar_historico_escolar() -> Dict[str, Any]:
         "4. Salve o arquivo como 'historico_escolar.pdf' usando write_file action.\n"
         "5. Retorne o caminho do arquivo salvo."
     )
-    # sensitive_data = {
-    #     "x_user": os.environ.get("SIGAA_USERNAME"),
-    #     "x_pass": os.environ.get("SIGAA_PASSWORD"),
-    # }
+
     try:
         result = await Agent(
             task=prompt,
@@ -201,10 +201,6 @@ async def listar_disciplinas_ofertadas(
         + ".\n3. Extraia nome, código, professor e horários de todas as disciplinas ofertadas neste semestre.\n"
         "4. Retorne os dados em formato de lista de dicionários."
     )
-    # sensitive_data = {
-    #     "x_user": os.environ.get("SIGAA_USERNAME"),
-    #     "x_pass": os.environ.get("SIGAA_PASSWORD"),
-    # }
     try:
         result = await Agent(
             task=prompt,
@@ -229,10 +225,6 @@ async def exportar_horarios_csv() -> Dict[str, Any]:
         "3. Salve os dados em 'horarios_aula.csv' usando write_file action.\n"
         "4. Retorne o caminho do arquivo salvo."
     )
-    # sensitive_data = {
-    #     "x_user": os.environ.get("SIGAA_USERNAME"),
-    #     "x_pass": os.environ.get("SIGAA_PASSWORD"),
-    # }
     try:
         result = await Agent(
             task=prompt,
@@ -257,10 +249,6 @@ async def listar_avisos_turmas() -> Dict[str, Any]:
         "3. Extraia os avisos/comunicados publicados nos últimos 30 dias, incluindo título, data, disciplina e conteúdo.\n"
         "4. Retorne os dados em formato de lista de dicionários."
     )
-    # sensitive_data = {
-    #     "x_user": os.environ.get("SIGAA_USERNAME"),
-    #     "x_pass": os.environ.get("SIGAA_PASSWORD"),
-    # }
     try:
         result = await Agent(
             task=prompt,
