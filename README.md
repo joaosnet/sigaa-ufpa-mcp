@@ -132,6 +132,12 @@ Adicione a seguinte configuração ao seu cliente MCP. Este método é o mais re
         "run",
         "--rm",
         "-i",
+        "-e", "GOOGLE_API_KEY=COLE_SUA_API_KEY_DO_GEMINI_AQUI",
+        "-e", "SIGAA_USERNAME=COLE_SEU_USUARIO_SIGAA_AQUI",
+        "-e", "SIGAA_PASSWORD=COLE_SUA_SENHA_SIGAA_AQUI",
+        "-e", "MCP_TRANSPORT=stdio",
+        "-e", "LOG_LEVEL=INFO",
+        "-e", "CHROME_HEADLESS=false",
         "-p",
         "8000:8000",
         "-p",
@@ -140,14 +146,6 @@ Adicione a seguinte configuração ao seu cliente MCP. Este método é o mais re
         "6080:6080",
         "sigaa-ufpa-mcp:latest"
       ],
-      "env": {
-        "GOOGLE_API_KEY": "COLE_SUA_API_KEY_DO_GEMINI_AQUI",
-        "SIGAA_USERNAME": "COLE_SEU_USUARIO_SIGAA_AQUI",
-        "SIGAA_PASSWORD": "COLE_SUA_SENHA_SIGAA_AQUI",
-        "MCP_TRANSPORT": "stdio",
-        "LOG_LEVEL": "INFO",
-        "CHROME_HEADLESS": "true"
-      },
       "alwaysAllow": [
         "reiniciar_sessao",
         "baixar_historico_escolar",
