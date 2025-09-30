@@ -10,7 +10,7 @@ registry:
     title: "SIGAA UFPA MCP"
     type: server
     dateAdded: "2025-09-30T17:20:00Z"
-    image: joaosnet/sigaa-ufpa-mcp
+    image: joaosnet/sigaa-ufpa-mcp:latest
     ref: ""
     readme: https://github.com/joaosnet/sigaa-ufpa-mcp/blob/main/README.md
     toolsUrl: http://desktop.docker.com/mcp/catalog/v2/tools/git.json
