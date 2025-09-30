@@ -11,15 +11,6 @@ sigaa-ufpa-mcp/
 ├── requirements.txt
 ├── .env.example
 ├── server.py
-├── sigaa_actor.py
-├── config/
-│   ├── browser_config.py
-│   └── mcp_config.py
-├── utils/
-│   ├── __init__.py
-│   ├── sigaa_helpers.py
-│   └── pdf_extractor.py
-├── logs/
 └── data/
     └── downloads/
 ```
