@@ -1,6 +1,6 @@
 # Servidor MCP para SIGAA UFPA com Browser-Use
 
-Este projeto implementa um servidor MCP (Model Context Protocol) específico para automatizar o acesso ao SIGAA da UFPA usando browser-use com actors para autenticação automática.
+Este projeto implementa um servidor MCP (Model Context Protocol) específico para automatizar o acesso ao SIGAA da UFPA usando browser-use com agents para autenticação automática.
 
 ## 📋 Estrutura do Projeto
 
@@ -8,12 +8,16 @@ Este projeto implementa um servidor MCP (Model Context Protocol) específico par
 sigaa-ufpa-mcp/
 ├── Dockerfile
 ├── docker-compose.yml
-├── requirements.txt
-├── .env.example
+├── pyproject.toml
+├── uv.lock
+├── .env.exemple
 ├── server.py
+├── mcp.json
+├── fastmcp.json
 └── data/
     └── downloads/
 ```
+
 ## 🚀 Como Usar com Docker
 
 Este projeto é otimizado para execução com Docker, oferecendo dois modos principais: `http` (serviço web) e `stdio` (para clientes MCP).
@@ -31,7 +35,7 @@ Este projeto é otimizado para execução com Docker, oferecendo dois modos prin
     cd sigaa-ufpa-mcp
     ```
 
-2.  **Configure as Variáveis de Ambiente:**
+2. **Configure as Variáveis de Ambiente:**
     Copie o arquivo de exemplo e preencha com suas credenciais.
     ```bash
     cp .env.exemple .env
@@ -60,22 +64,24 @@ docker-compose up -d
 - O servidor estará acessível na porta `8000`.
 - Você pode monitorar os logs com `docker-compose logs -f`.
 - A interface gráfica pode ser acessada via VNC no endereço `localhost:5900` (senha padrão: `browser-use`).
+- A interface gráfica também pode ser acessada via noVNC no navegador em `http://localhost:6080/vnc.html?autoconnect=1&resize=scale&password=browser-use`.
 
 ### Acessando o Servidor VNC
 
 Para visualizar a interface gráfica do navegador automatizado:
 
-Acesse http://localhost:6080/vnc.html?autoconnect=1&resize=scale&password=browser-use
+1. **Acesso via noVNC (navegador):**
+   - Acesse http://localhost:6080/vnc.html?autoconnect=1&resize=scale&password=browser-use
 
-1. **Instale um cliente VNC** em seu computador (como TigerVNC Viewer, RealVNC, UltraVNC, ou qualquer outro cliente VNC de sua preferência)
-
-2. **Conecte-se ao servidor VNC** usando:
-   - Endereço: `localhost:5900` (já que a porta 5900 do contêiner está mapeada para a porta 5900 do host)
-   - Senha: `browser-use` (padrão definido no Dockerfile)
+2. **Acesso via cliente VNC:**
+   - Instale um cliente VNC em seu computador (como TigerVNC Viewer, RealVNC, UltraVNC, ou qualquer outro cliente VNC de sua preferência)
+   - Conecte-se ao servidor VNC usando:
+     - Endereço: `localhost:5900` (já que a porta 5900 do contêiner está mapeada para a porta 5900 do host)
+     - Senha: `browser-use` (padrão definido no Dockerfile)
 
 3. **Visualize as automações** em execução no navegador que está sendo controlado pelo sistema de automação do SIGAA.
 
-O acesso VNC é especialmente útil para:
+O acesso VNC/noVNC é especialmente útil para:
 - Monitorar visualmente as automações em execução
 - Depurar problemas de navegação
 - Verificar visualmente se as tarefas estão sendo executadas corretamente
@@ -136,14 +142,11 @@ Após configurar, você pode usar no Claude:
 
 ## 📋 Ferramentas Disponíveis
 
-1. **sigaa_login** - Realiza login no SIGAA com credenciais fornecidas ou do ambiente. A maioria das outras ferramentas verifica automaticamente se o usuário está logado e, se não estiver, realiza o login antes de executar a operação solicitada.
-2. **sigaa_navigate_and_extract** - Navegar e extrair dados de seções
-3. **sigaa_download_document** - Baixar documentos acadêmicos
-4. **sigaa_custom_task** - Executar tarefas personalizadas com IA
-5. **sigaa_get_notifications** - Obter notificações e avisos
-6. **sigaa_get_class_schedule** - Extrair horário de aulas
-7. **sigaa_check_status** - Verificar status da sessão
-8. **sigaa_logout** - Fazer logout
+1. **reiniciar_sessao** - Reinicia a sessão do navegador e realiza o login novamente.
+2. **baixar_historico_escolar** - Baixa o histórico escolar completo do aluno em PDF e retorna o caminho do arquivo salvo.
+3. **listar_disciplinas_ofertadas** - Lista todas as disciplinas ofertadas no semestre atual para o curso e turno informados.
+4. **exportar_horarios_csv** - Exporta todos os horários de aula do aluno no semestre atual em formato CSV.
+5. **listar_avisos_turmas** - Lista todos os avisos/comunicados recentes das turmas em que o aluno está matriculado.
 
 ## 🔒 Segurança
 
@@ -157,11 +160,11 @@ Após configurar, você pode usar no Claude:
 Para desenvolvimento local:
 
 ```bash
-# Instalar dependências
-pip install -r requirements.txt
+# Instalar dependências com uv
+uv sync --frozen
 
 # Executar em modo desenvolvimento
-python server.py
+uv run server.py
 
 # Logs em tempo real
 tail -f logs/server.log
@@ -170,7 +173,7 @@ tail -f logs/server.log
 ## ⚠️ Importante
 
 - Este servidor é específico para o SIGAA da UFPA
-- Requer credenciais válidas da universidade  
+- Requer credenciais válidas da universidade
 - Respeite os termos de uso do SIGAA
 - Use apenas para automação pessoal legítima
 
