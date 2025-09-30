@@ -1,53 +1,50 @@
+version: 2
+
+name: sigaa-ufpa-mcp
+
+displayName: SIGAA UFPA MCP Server
+
 registry:
-    sigaa-ufpa:
-        dateAdded: "2025-09-30T00:00:00Z"
-        title: SIGAA UFPA MCP Server
-        description: >-
-            Servidor MCP para automação do SIGAA UFPA via browser-use, com integração Gemini e ferramentas acadêmicas. Permite login automatizado, download de histórico escolar, listagem de disciplinas, exportação de horários e avisos de turmas.
-        icon: https://raw.githubusercontent.com/joaosnet/sigaa-ufpa-mcp/main/assets/sigaa-ufpa-mcp-icon.png
-        metadata:
-            category: education
-            license: MIT
-            owner: joaosnet
-            tags:
-                - sigaa
-                - ufpa
-                - mcp
-                - browser-use
-                - gemini
-        readme: https://github.com/joaosnet/sigaa-ufpa-mcp/blob/main/README.md
-        source: https://github.com/joaosnet/sigaa-ufpa-mcp
-        image: joaosnet/sigaa-ufpa-mcp:latest
-        resources:
-            - url: https://sigaa.ufpa.br
-                description: Portal SIGAA UFPA
-            - url: https://github.com/joaosnet/sigaa-ufpa-mcp
-                description: Repositório do projeto
-        environment:
-            - GOOGLE_API_KEY
-            - SIGAA_USERNAME
-            - SIGAA_PASSWORD
-            - MCP_TRANSPORT
-            - LOG_LEVEL
-            - CHROME_HEADLESS
-        tools:
-            - name: reiniciar_sessao
-                description: Reinicia a sessão do navegador e realiza o login novamente.
-            - name: baixar_historico_escolar
-                description: Baixa o histórico escolar completo do aluno em PDF.
-            - name: listar_disciplinas_ofertadas
-                description: Lista todas as disciplinas ofertadas no semestre atual para o curso e turno informados.
-                parameters:
-                    curso:
-                        type: string
-                        description: Nome do curso (ex: Engenharia de Computação)
-                    turno:
-                        type: string
-                        description: Turno (ex: Matutino, Noturno, opcional)
-            - name: exportar_horarios_csv
-                description: Exporta todos os horários de aula do aluno no semestre atual em formato CSV.
-            - name: listar_avisos_turmas
-                description: Lista todos os avisos/comunicados recentes das turmas em que o aluno está matriculado.
-        documentation:
-            - https://github.com/joaosnet/sigaa-ufpa-mcp/blob/main/README.md
-            - https://modelcontextprotocol.io/examples
+  sigaa-ufpa:
+    dateAdded: "2025-09-30T17:20:00Z"
+    description: Servidor MCP para automação do SIGAA da UFPA com browser-use e FastMCP
+    icon: https://avatars.githubusercontent.com/u/182288589?s=200&v=4
+    image: joaosnet/sigaa-ufpa-mcp:latest
+    command:
+      - -p 8000:8000
+      - -p 5900:5900
+      - -p 6080:6080
+    metadata:
+      category: automation
+      license: MIT
+      owner: local
+      tags:
+        - sigaa
+        - ufpa
+        - automation
+        - education
+    prompts: 0
+    readme: https://github.com/joaosnet/sigaa-ufpa-mcp/blob/main/README.md
+    ref: ""
+    resources: {}
+    secrets:
+      - env: GOOGLE_API_KEY
+        example: your-gemini-api-key-here
+        name: sigaa-ufpa.google_api_key
+      - env: SIGAA_USERNAME
+        example: seu.usuario.ufpa
+        name: sigaa-ufpa.username
+      - env: SIGAA_PASSWORD
+        example: suaSenhaSegura123
+        name: sigaa-ufpa.password
+    source: https://github.com/modelcontextprotocol/servers/tree/2025.4.24/src/git
+    title: SIGAA UFPA MCP
+    tools:
+      - name: reiniciar_sessao
+      - name: baixar_historico_escolar
+      - name: listar_disciplinas_ofertadas
+      - name: exportar_horarios_csv
+      - name: listar_avisos_turmas
+    toolsUrl: http://desktop.docker.com/mcp/catalog/v2/tools/git.json
+    type: server
+    upstream: https://github.com/modelcontextprotocol/servers
