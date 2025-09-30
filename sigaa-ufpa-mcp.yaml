@@ -10,10 +10,10 @@ registry:
     description: Servidor MCP para automação do SIGAA da UFPA com browser-use e FastMCP
     icon: https://avatars.githubusercontent.com/u/182288589?s=200&v=4
     image: joaosnet/sigaa-ufpa-mcp:latest
-    command:
-      - -p 8000:8000
-      - -p 5900:5900
-      - -p 6080:6080
+    # command:
+    #   - -p 8000:8000
+    #   - -p 5900:5900
+    #   - -p 6080:6080
     metadata:
       category: automation
       license: MIT
