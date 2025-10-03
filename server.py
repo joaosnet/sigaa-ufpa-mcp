@@ -10,7 +10,7 @@ from pydantic import Field
 from dotenv import load_dotenv
 import warnings
 import asyncio
-# from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager
 
 # Configuração global de logging para stderr
 logging.basicConfig(
@@ -150,25 +150,28 @@ async def login_sigaa():
 
 
 # Lifespan async para FastMCP
-# @asynccontextmanager
-# async def lifespan_manager(app):
-#     logger.info("🚀 Iniciando servidor MCP...")
-#     try:
-#         await login_sigaa()
-#         logger.info("✅ Função de startup (login_sigaa) executada com sucesso")
-#         yield
-#     except Exception as e:
-#         logger.error(f"❌ Erro na inicialização: {e}")
-#     finally:
-#         logger.info("🔄 Desligando servidor...")
-#         # Encerrando todos os recursos
-#         await browser.stop()
+@asynccontextmanager
+async def lifespan_manager(app):
+    logger.info("🚀 Iniciando servidor MCP...")
+    try:
+        # await login_sigaa()
+        # logger.info("✅ Função de startup (login_sigaa) executada com sucesso")
+        yield
+    except Exception as e:
+        logger.error(f"❌ Erro na inicialização: {e}")
+    finally:
+        logger.info("🔄 Desligando servidor...")
+        # Encerrando todos os recursos
+        try:
+            await browser.stop()
+        except Exception as e:
+            logger.error(f"Erro ao encerrar o navegador: {e}")
 
 
 # Inicializar FastMCP com lifespan
 mcp = FastMCP(
     name="SIGAA UFPA MCP Server",
-    # lifespan=lifespan_manager,
+    lifespan=lifespan_manager,
 )
 
 
