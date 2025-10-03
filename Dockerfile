@@ -64,7 +64,7 @@ RUN uvx playwright install chromium --with-deps --no-shell
 RUN mkdir -p /root/.vnc && \
     printf '#!/bin/sh\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nstartxfce4' > /root/.vnc/xstartup && \
     chmod +x /root/.vnc/xstartup && \
-    printf '#!/bin/bash\n\n# Use Docker secret for VNC password if available, else fallback to default\nif [ -f "/run/secrets/vnc_password" ]; then\n  cat /run/secrets/vnc_password | vncpasswd -f > /root/.vnc/passwd\nelse\n  echo "browser-use" | vncpasswd -f > /root/.vnc/passwd\nfi\nchmod 600 /root/.vnc/passwd\nvncserver -depth 24 -geometry 1920x1080 -localhost no -PasswordFile /root/.vnc/passwd :0\nproxy-login-automator 2>/dev/null || true\nexport MCP_TRANSPORT=${MCP_TRANSPORT:-http}\nwebsockify -D --web /usr/share/novnc 6080 localhost:5900 &\npython server.py' > /app/boot.sh && \
+    printf '#!/bin/bash\n\n# Use Docker secret for VNC password if available, else fallback to default\nif [ -f "/run/secrets/vnc_password" ]; then\n  cat /run/secrets/vnc_password | vncpasswd -f > /root/.vnc/passwd\nelse\n  echo "browser-use" | vncpasswd -f > /root/.vnc/passwd\nfi\nchmod 600 /root/.vnc/passwd\n{\n  vncserver -depth 24 -geometry 1920x1080 -localhost no -PasswordFile /root/.vnc/passwd :0\n  proxy-login-automator 2>/dev/null || true\n  export MCP_TRANSPORT=${MCP_TRANSPORT:-http}\n  websockify -D --web /usr/share/novnc 6080 localhost:5900\n} 1>&2\npython server.py' > /app/boot.sh && \
     chmod +x /app/boot.sh
 
 EXPOSE 8000 6080 5900

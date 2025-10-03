@@ -1,14 +1,46 @@
 import os
+import sys
 import logging
 from typing import Any, Dict
 from browser_use import Agent, Browser
 from browser_use.llm.google import ChatGoogle
 from fastmcp import FastMCP
 from pydantic import Field
+
 from dotenv import load_dotenv
 import warnings
 import asyncio
 from contextlib import asynccontextmanager
+
+# Configuração global de logging para stderr
+logging.basicConfig(
+    stream=sys.stderr,
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+# Função para configurar todos os loggers para usar stderr
+def configure_all_loggers():
+    """
+    Configura todos os loggers registrados no sistema para usar stderr e nível INFO
+    """
+    # Configura o root logger
+    global logger
+    logger = logging.getLogger()
+    logger.handlers.clear()
+    logger.addHandler(logging.StreamHandler(sys.stderr))
+    logger.setLevel(logging.INFO)
+
+    # Itera sobre todos os loggers registrados
+    for logger_name, logger_instance in logging.Logger.manager.loggerDict.items():
+        if isinstance(logger_instance, logging.Logger):
+            logger_instance.handlers.clear()
+            logger_instance.addHandler(logging.StreamHandler(sys.stderr))
+            logger_instance.setLevel(logging.INFO)
+            logger_instance.propagate = False  # Evita duplicação de logs
+
+# Executa a configuração
+configure_all_loggers()
 
 warnings.filterwarnings("ignore", message="websockets.legacy is deprecated")
 warnings.filterwarnings(
@@ -60,7 +92,7 @@ async def esperar_elemento(
             # Pode ser que o DOM ainda não esteja pronto
             pass
         await asyncio.sleep(poll_interval)
-    logging.warning(f"Elemento '{selector}' não encontrado após {timeout}s.")
+    logger.warning(f"Elemento '{selector}' não encontrado após {timeout}s.")
     return None
 
 
@@ -107,29 +139,32 @@ async def login_sigaa():
         startup_status["success"] = True
         startup_status["message"] = "Login realizado com sucesso"
         startup_status["logged_in"] = True
-        logging.info("Login SIGAA realizado com sucesso.")
+        logger.info("Login SIGAA realizado com sucesso.")
     except Exception as e:
         startup_status["success"] = False
         startup_status["message"] = f"Erro no login SIGAA: {e}"
         startup_status["logged_in"] = False
-        logging.error(f"Erro no login SIGAA: {e}")
+        logger.error(f"Erro no login SIGAA: {e}")
 
 
 # Lifespan async para FastMCP
 @asynccontextmanager
 async def lifespan_manager(app):
-    logging.info("🚀 Iniciando servidor MCP...")
+    logger.info("🚀 Iniciando servidor MCP...")
     try:
         await login_sigaa()
-        logging.info("✅ Função de startup (login_sigaa) executada com sucesso")
+        logger.info("✅ Função de startup (login_sigaa) executada com sucesso")
     except Exception as e:
-        logging.error(f"❌ Erro na inicialização: {e}")
+        logger.error(f"❌ Erro na inicialização: {e}")
     yield
-    logging.info("🔄 Desligando servidor...")
+    logger.info("🔄 Desligando servidor...")
 
 
 # Inicializar FastMCP com lifespan
-mcp = FastMCP(name="SIGAA UFPA MCP Server", lifespan=lifespan_manager)
+mcp = FastMCP(
+    name="SIGAA UFPA MCP Server",
+    lifespan=lifespan_manager,
+)
 
 
 @mcp.resource("resource://status-init")
@@ -157,7 +192,7 @@ async def reiniciar_sessao() -> Dict[str, Any]:
             "logged_in": startup_status["logged_in"],
         }
     except Exception as e:
-        logging.error(f"Erro ao reiniciar sessão: {e}")
+        logger.error(f"Erro ao reiniciar sessão: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -185,7 +220,7 @@ async def baixar_historico_escolar() -> Dict[str, Any]:
         ).run()
         return result
     except Exception as e:
-        logging.error(f"Erro ao baixar histórico escolar: {e}")
+        logger.error(f"Erro ao baixar histórico escolar: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -251,7 +286,7 @@ async def listar_disciplinas_ofertadas(
 - Filtre por curso, instituto ou nome da disciplina
 - Visualize detalhes e programas atuais das disciplinas
     """
-    
+
     try:
         result = await Agent(
             task=prompt,
@@ -261,7 +296,7 @@ async def listar_disciplinas_ofertadas(
         ).run()
         return result
     except Exception as e:
-        logging.error(f"Erro ao listar disciplinas ofertadas: {e}")
+        logger.error(f"Erro ao listar disciplinas ofertadas: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -288,7 +323,7 @@ async def exportar_horarios_csv() -> Dict[str, Any]:
         ).run()
         return result
     except Exception as e:
-        logging.error(f"Erro ao exportar horários: {e}")
+        logger.error(f"Erro ao exportar horários: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -317,24 +352,24 @@ async def listar_avisos_turmas() -> Dict[str, Any]:
         ).run()
         return result
     except Exception as e:
-        logging.error(f"Erro ao listar avisos das turmas: {e}")
+        logger.error(f"Erro ao listar avisos das turmas: {e}")
         return {"success": False, "error": str(e)}
 
 
 if __name__ == "__main__":
     try:
-        logging.info(os.environ)
+        logger.info(os.environ)
         transport_mode = os.getenv("MCP_TRANSPORT", "stdio")
         if transport_mode == "http":
-            logging.info("Iniciando servidor MCP em modo HTTP...")
+            logger.info("Iniciando servidor MCP em modo HTTP...")
             mcp.run(transport="http", host="0.0.0.0", port=8000)
         elif transport_mode == "stdio":
-            logging.info("Iniciando servidor MCP em modo stdio...")
+            logger.info("Iniciando servidor MCP em modo stdio...")
             mcp.run(transport="stdio")
         else:
-            logging.error(
+            logger.error(
                 f"Modo de transporte desconhecido: {transport_mode}. Use 'stdio' ou 'http'."
             )
             mcp.run(transport="stdio")
     except KeyboardInterrupt:
-        logging.info("Encerrando servidor...")
+        logger.info("Encerrando servidor...")
