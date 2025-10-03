@@ -10,14 +10,15 @@ from pydantic import Field
 from dotenv import load_dotenv
 import warnings
 import asyncio
-from contextlib import asynccontextmanager
+# from contextlib import asynccontextmanager
 
 # Configuração global de logging para stderr
 logging.basicConfig(
     stream=sys.stderr,
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
+
 
 # Função para configurar todos os loggers para usar stderr
 def configure_all_loggers():
@@ -38,6 +39,7 @@ def configure_all_loggers():
             logger_instance.addHandler(logging.StreamHandler(sys.stderr))
             logger_instance.setLevel(logging.INFO)
             logger_instance.propagate = False  # Evita duplicação de logs
+
 
 # Executa a configuração
 configure_all_loggers()
@@ -148,25 +150,25 @@ async def login_sigaa():
 
 
 # Lifespan async para FastMCP
-@asynccontextmanager
-async def lifespan_manager(app):
-    logger.info("🚀 Iniciando servidor MCP...")
-    try:
-        await login_sigaa()
-        logger.info("✅ Função de startup (login_sigaa) executada com sucesso")
-        yield
-    except Exception as e:
-        logger.error(f"❌ Erro na inicialização: {e}")
-    finally:
-        logger.info("🔄 Desligando servidor...")
-        # Encerrando todos os recursos
-        await browser.stop()
+# @asynccontextmanager
+# async def lifespan_manager(app):
+#     logger.info("🚀 Iniciando servidor MCP...")
+#     try:
+#         await login_sigaa()
+#         logger.info("✅ Função de startup (login_sigaa) executada com sucesso")
+#         yield
+#     except Exception as e:
+#         logger.error(f"❌ Erro na inicialização: {e}")
+#     finally:
+#         logger.info("🔄 Desligando servidor...")
+#         # Encerrando todos os recursos
+#         await browser.stop()
 
 
 # Inicializar FastMCP com lifespan
 mcp = FastMCP(
     name="SIGAA UFPA MCP Server",
-    lifespan=lifespan_manager,
+    # lifespan=lifespan_manager,
 )
 
 
@@ -205,7 +207,6 @@ async def baixar_historico_escolar() -> Dict[str, Any]:
     """
     Baixa o histórico escolar completo do aluno em PDF e retorna o caminho do arquivo salvo.
     """
-
     prompt = """
     1. Se aparecer Selecione o Ano-Período mais atual
     2. Se aparecer Selecione o Portal do Discente
@@ -215,6 +216,7 @@ async def baixar_historico_escolar() -> Dict[str, Any]:
     Obs.: Durante o período de processamento de matricula não é possível emitir histórico"""
 
     try:
+        await login_sigaa()
         result = await Agent(
             task=prompt,
             browser=browser,
@@ -291,6 +293,7 @@ async def listar_disciplinas_ofertadas(
     """
 
     try:
+        await login_sigaa()
         result = await Agent(
             task=prompt,
             browser=browser,
@@ -318,6 +321,8 @@ async def exportar_horarios_csv() -> Dict[str, Any]:
     """
 
     try:
+        await login_sigaa()
+
         result = await Agent(
             task=prompt,
             browser=browser,
@@ -347,6 +352,8 @@ async def listar_avisos_turmas() -> Dict[str, Any]:
     4. Repita para todas as turmas
     """
     try:
+        await login_sigaa()
+
         result = await Agent(
             task=prompt,
             browser=browser,
