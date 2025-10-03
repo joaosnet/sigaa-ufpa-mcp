@@ -154,10 +154,13 @@ async def lifespan_manager(app):
     try:
         await login_sigaa()
         logger.info("✅ Função de startup (login_sigaa) executada com sucesso")
+        yield
     except Exception as e:
         logger.error(f"❌ Erro na inicialização: {e}")
-    yield
-    logger.info("🔄 Desligando servidor...")
+    finally:
+        logger.info("🔄 Desligando servidor...")
+        # Encerrando todos os recursos
+        await browser.stop()
 
 
 # Inicializar FastMCP com lifespan
