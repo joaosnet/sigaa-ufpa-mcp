@@ -176,3 +176,5 @@ src/tests/*.xlsx
 src/bot_telegram/*.csv
 src/bot_telegram/*.txt
 src/logs/browser/
+client_secrets.json
+token.json
