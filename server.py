@@ -2,9 +2,9 @@ import os
 import sys
 import logging
 from typing import Any, Dict
-from browser_use import Agent, Browser, BrowserSession, ChatOpenAI, Tools
+from browser_use import Agent, Browser, BrowserSession, Tools
 
-# from browser_use.llm.google import ChatGoogle
+from browser_use.llm.google import ChatGoogle
 from fastmcp import FastMCP
 from pydantic import Field
 
@@ -58,16 +58,17 @@ startup_status = {"success": False, "message": "", "logged_in": False}
 BASE_URL = "https://sigaa.ufpa.br"
 
 transport_mode = os.getenv("MCP_TRANSPORT", "stdio")
-# llm = ChatGoogle(
-#     api_key=os.environ.get("GOOGLE_API_KEY"),
-#     model="gemini-flash-latest",
-# )
 
-llm = ChatOpenAI(
-    model="moonshotai/kimi-k2-instruct-0905",
-    base_url="http://host.docker.internal:8080/api/Groq/",
-    api_key=os.environ.get("GROQ_API_KEY"),
+llm = ChatGoogle(
+    api_key=os.environ.get("GOOGLE_API_KEY"),
+    model="gemini-flash-latest",
 )
+
+# llm = ChatOpenAI(
+#     model="moonshotai/kimi-k2-instruct-0905",
+#     base_url="http://host.docker.internal:8080/api/Groq/",
+#     api_key=os.environ.get("GROQ_API_KEY"),
+# )
 
 browser = Browser(
     allowed_domains=[BASE_URL],
@@ -77,6 +78,7 @@ browser = Browser(
 )
 
 tools = Tools()
+
 # sensitive_data = {
 #     "x_user": os.environ.get("SIGAA_USERNAME"),
 #     "x_pass": os.environ.get("SIGAA_PASSWORD"),
@@ -149,6 +151,24 @@ async def perform_login(page):
     await botao_submit.click()
 
 
+async def full_login_procedure():
+    global startup_status
+    try:
+        await browser.start()
+        page = await browser.get_current_page()
+        await page.goto(BASE_URL)
+        await perform_login(page)
+        startup_status["success"] = True
+        startup_status["message"] = "Login realizado com sucesso"
+        startup_status["logged_in"] = True
+        logger.info("✅ Login SIGAA realizado com sucesso")
+    except Exception as e:
+        logger.error(f"Erro no login SIGAA: {e}")
+        startup_status["success"] = False
+        startup_status["message"] = f"Erro no login SIGAA: {e}"
+        startup_status["logged_in"] = False
+
+
 # Função de login adaptada para uso como ferramenta do browser-use
 @tools.action(
     description="Perform login to SIGAA UFPA system using provided credentials from environment variables"
@@ -172,11 +192,7 @@ async def lifespan_manager(app):
     try:
         # await login_sigaa()
         if transport_mode == "http":
-            await browser.start()
-            page = await browser.get_current_page()
-            await page.goto(BASE_URL)
-            await perform_login(page)
-            logger.info("✅ Função de startup (login_sigaa) executada com sucesso")
+            await full_login_procedure()
         yield
     except Exception as e:
         logger.error(f"❌ Erro na inicialização: {e}")
@@ -205,34 +221,20 @@ def get_status_login():
     }
 
 
-# Ferramenta 0: Reiniciar sessão do navegador e relogar
-@mcp.tool()
-async def reiniciar_sessao() -> Dict[str, Any]:
-    """
-    Reinicia a sessão do navegador e realiza o login novamente.
-    """
-    global startup_status
-    try:
-        # await browser.stop()
-        # await browser.start()
-        page = await browser.get_current_page()
-        await page.goto(BASE_URL)
-        await perform_login(page)
-
-        startup_status["success"] = True
-        startup_status["message"] = "Login realizado com sucesso"
-        startup_status["logged_in"] = True
+# Ferramenta 0 para http: Reiniciar sessão do navegador e relogar
+if transport_mode == "http":
+    @mcp.tool()
+    async def reiniciar_sessao() -> Dict[str, Any]:
+        """
+        Reinicia a sessão do navegador e realiza o login novamente.
+        """
+        global startup_status
+        await full_login_procedure()
         return {
             "success": startup_status["success"],
             "message": startup_status["message"],
             "logged_in": startup_status["logged_in"],
         }
-    except Exception as e:
-        logger.error(f"Erro ao reiniciar sessão: {e}")
-        startup_status["success"] = False
-        startup_status["message"] = f"Erro no login SIGAA: {e}"
-        startup_status["logged_in"] = False
-        return {"success": False, "error": str(e)}
 
 
 # Ferramenta 1: Baixar histórico escolar em PDF
@@ -251,6 +253,8 @@ async def baixar_historico_escolar() -> Dict[str, Any]:
     Obs.: Durante o período de processamento de matricula não é possível emitir histórico"""
 
     try:
+        if transport_mode == "studio":
+            await full_login_procedure()
         result = await Agent(
             task=prompt,
             use_vision=False,
@@ -333,6 +337,8 @@ async def listar_disciplinas_ofertadas(
     """
 
     try:
+        if transport_mode == "studio":
+            await full_login_procedure()
         result = await Agent(
             task=prompt,
             use_vision=False,
@@ -366,6 +372,8 @@ async def exportar_horarios_csv() -> Dict[str, Any]:
     """
 
     try:
+        if transport_mode == "studio":
+            await full_login_procedure()
         result = await Agent(
             task=prompt,
             use_vision=False,
@@ -401,6 +409,8 @@ async def listar_avisos_turmas() -> Dict[str, Any]:
     4. Repita para todas as turmas
     """
     try:
+        if transport_mode == "studio":
+            await full_login_procedure()
         result = await Agent(
             task=prompt,
             use_vision=False,

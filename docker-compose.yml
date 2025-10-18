@@ -4,7 +4,6 @@ services:
     container_name: sigaa-ufpa-mcp
     ports:
       - "8000:8000"
-      - "5900:5900"  # VNC port
       - "6080:6080"  # noVNC port for web access
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
@@ -16,8 +15,8 @@ services:
       - LOG_LEVEL=INFO
       - MCP_TRANSPORT=http
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - ./downloads:/root/Downloads  # Downloads do navegador
+      - ./screenshots:/app/screenshots  # Screenshots capturados
     restart: unless-stopped
     develop:  # Configuração do Docker Compose Watch
       watch:
