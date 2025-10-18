@@ -453,17 +453,19 @@ async def trocar_imagem_perfil(
     descricao: str = Field("", description="Nova descrição para o perfil (opcional)"),
 ) -> Dict[str, Any]:
     """
-    Troca a imagem de perfil do discente e atualiza a descrição usando Actor sem LLM.
+    Troca a imagem de perfil do discente e atualiza a descrição.
     """
-    from browser_use.actor import Actor
 
-    temp_image_path = None
     try:
+        # llm = ChatOpenAI(
+        #     model="moonshotai/kimi-k2-instruct-0905",
+        #     base_url="http://host.docker.internal:8080/api/Groq/",
+        #     api_key=os.environ.get("GROQ_API_KEY"),
+        # )
         service = drive_service.GoogleDriveService()
         b64 = service.download_em_base64(drive_file_id)
         if not b64:
             raise Exception("Falha ao baixar imagem do Drive")
-        
         image_bytes = base64.b64decode(b64)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
             temp_file.write(image_bytes)
@@ -471,10 +473,8 @@ async def trocar_imagem_perfil(
 
         if transport_mode == "studio":
             await full_login_procedure_discente()
-        
         page = await browser.get_current_page()
-        
-        # Extrair CPF e Data de Nascimento dos dados pessoais
+        # Pegar o CPF e a data de nascimento dos dados do discente
         botao = await esperar_elemento(
             page, r"#j_id_jsp_612222572_250\:meusDadosPessoais"
         )
@@ -483,103 +483,79 @@ async def trocar_imagem_perfil(
             page, ".formulario > tbody:nth-child(2) > tr:nth-child(5) > td:nth-child(2)"
         )
 
-        # Usar Actor sem LLM para extrair dados
-        actor = Actor(
+        # Extract structured data
+        class UserInfo(BaseModel):
+            data_nascimento: str
+            cpf: str
+
+        userinfo = await Agent(
+            task="Extract Data de Nascimento: ... and CPF: ... from the page.",
+            use_vision=False,
             browser=browser,
-            llm=None  # Sem LLM
-        )
-        
-        # Extrair Data de Nascimento (linha 5, coluna 2)
-        data_nascimento_element = await esperar_elemento(
-            page, ".formulario > tbody:nth-child(2) > tr:nth-child(5) > td:nth-child(2)"
-        )
-        data_nascimento = await data_nascimento_element.get_text() if data_nascimento_element else ""
-        
-        # Extrair CPF (linha 13, coluna 2)
-        cpf_element = await esperar_elemento(
-            page, ".formulario > tbody:nth-child(2) > tr:nth-child(13) > td:nth-child(2)"
-        )
-        cpf = await cpf_element.get_text() if cpf_element else ""
-        
-        logger.info(f"Dados extraídos - Data: {data_nascimento}, CPF: {cpf}")
-        
-        # Clicar em Menu do Discente
+            llm=llm,
+            output_model_schema=UserInfo,
+        ).run()
+        userinfo = userinfo.final_result()
+        userinfo: UserInfo = UserInfo.model_validate_json(userinfo)
+        # data_nascimento_element = await esperar_elemento(
+        #     page, ".formulario > tbody:nth-child(2) > tr:nth-child(5) > td:nth-child(2)"
+        # )
+        # cpf_element = await esperar_elemento(
+        #     page,
+        #     ".formulario > tbody:nth-child(2) > tr:nth-child(13) > td:nth-child(2)",
+        # )
+        # data_nascimento_element = await data_nascimento_element.get_attribute("innerText")
+        # cpf_element = await cpf_element.get_attribute("innerText")
+        sensitive_data = {
+            "data_nascimento": userinfo.data_nascimento,
+            "cpf": userinfo.cpf,
+            "senha": os.environ.get("SIGAA_PASSWORD"),
+        }
+        print(sensitive_data)
+        # Clicando em Menu do Discente
         botao = await esperar_elemento(page, ".menus")
         await botao.click()
-        
-        # Clicar em Atualizar Foto e Perfil
+        # Clicando em Atualizar Foto e Perfil
         botao = await esperar_elemento(page, ".perfil")
         await botao.click()
-        
-        # Usar Actor sem LLM para preencher formulário
-        actor = Actor(
+        # Primeiro agente: Adicionar imagem e descrição
+        prompt_adicionar = f"""Troque a imagem de perfil do discente no SIGAA UFPA. A imagem está localizada em {temp_image_path}.
+        Atualize a descrição do perfil para: {descricao} Não clique em gravar perfil"""
+        result_adicionar = await Agent(
+            task=prompt_adicionar,
+            use_vision=False,
             browser=browser,
-            llm=None
-        )
-        
-        # Passo 1: Upload da imagem
-        file_input = await esperar_elemento(page, "input[type='file']")
-        if file_input:
-            await file_input.upload_file(temp_image_path)
-            logger.info(f"✅ Arquivo de imagem enviado: {temp_image_path}")
-            await asyncio.sleep(1)
-        
-        # Passo 2: Preencher descrição
-        descricao_input = await esperar_elemento(page, "textarea[name*='descricao'], input[name*='descricao']")
-        if descricao_input and descricao:
-            await descricao_input.fill(descricao, clear=True)
-            logger.info(f"✅ Descrição preenchida: {descricao}")
-        
-        # Passo 3: Clicar em "Gravar perfil"
-        botao_gravar = await esperar_elemento(page, "input[type='submit'][value*='Gravar'], button:has-text('Gravar')")
-        if botao_gravar:
-            await botao_gravar.click()
-            logger.info("✅ Botão 'Gravar perfil' clicado")
-            await asyncio.sleep(2)
-        
-        # Passo 4: Confirmação com CPF/Senha
-        # Verificar se aparecer modal de confirmação
-        cpf_input = await esperar_elemento(page, "input[name*='cpf']", timeout=5.0)
-        if cpf_input:
-            await cpf_input.fill(cpf.replace(".", "").replace("-", ""), clear=True)
-            logger.info("✅ CPF preenchido para confirmação")
-            await asyncio.sleep(0.5)
-        
-        # Preencher senha
-        senha_input = await esperar_elemento(page, "input[type='password']", timeout=5.0)
-        if senha_input:
-            senha = os.environ.get("SIGAA_PASSWORD")
-            await senha_input.fill(senha, clear=True)
-            logger.info("✅ Senha preenchida para confirmação")
-            await asyncio.sleep(0.5)
-        
-        # Clicar no botão de confirmação
-        botao_confirmar = await esperar_elemento(page, "input[type='submit'][value*='Confirmar'], button:has-text('Confirmar')", timeout=5.0)
-        if botao_confirmar:
-            await botao_confirmar.click()
-            logger.info("✅ Confirmação enviada")
-            await asyncio.sleep(2)
-        
-        logger.info("✅ Perfil atualizado com sucesso!")
-        return {
-            "success": True,
-            "message": "Perfil do discente atualizado com sucesso",
-            "imagem_carregada": True,
-            "descricao_atualizada": bool(descricao),
-        }
+            llm=llm,
+            tools=tools,
+            available_file_paths=[temp_image_path],
+        ).run()
+
+        # Segundo agente: Confirmar usando dados pessoais e resultado do primeiro
+        prompt_confirmar = f"""Com base no resultado da adição da imagem e descrição: {result_adicionar}\n
+        Confirme a identidade do discente usando os dados pessoais (CPF ou Data de Nascimento) fornecidos e verifique se a troca foi realizada com sucesso."""
+        result_confirmar = await Agent(
+            task=prompt_confirmar,
+            use_vision=False,
+            browser=browser,
+            sensitive_data=sensitive_data,
+            llm=llm,
+            tools=tools,
+            available_file_paths=[temp_image_path],
+        ).run()
+
+        # Combinar resultados
+        return result_confirmar
 
     except Exception as e:
         logger.error(f"Erro ao trocar imagem de perfil: {e}")
         return {"success": False, "error": str(e)}
-    
     finally:
         # Limpar arquivo temporário
-        if temp_image_path:
-            try:
+        try:
+            if "temp_image_path" in locals():
                 os.unlink(temp_image_path)
-                logger.info(f"✅ Arquivo temporário removido: {temp_image_path}")
-            except Exception as e:
-                logger.warning(f"Não foi possível remover arquivo temporário: {e}")
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
