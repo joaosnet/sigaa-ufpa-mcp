@@ -2,8 +2,9 @@ import os
 import sys
 import logging
 from typing import Any, Dict
-from browser_use import Agent, Browser
-from browser_use.llm.google import ChatGoogle
+from browser_use import Agent, Browser, BrowserSession, ChatOpenAI, Tools
+
+# from browser_use.llm.google import ChatGoogle
 from fastmcp import FastMCP
 from pydantic import Field
 
@@ -56,15 +57,26 @@ startup_status = {"success": False, "message": "", "logged_in": False}
 
 BASE_URL = "https://sigaa.ufpa.br"
 
+transport_mode = os.getenv("MCP_TRANSPORT", "stdio")
+# llm = ChatGoogle(
+#     api_key=os.environ.get("GOOGLE_API_KEY"),
+#     model="gemini-flash-latest",
+# )
 
-llm = ChatGoogle(
-    api_key=os.environ.get("GOOGLE_API_KEY"),
-    model="gemini-flash-latest",
+llm = ChatOpenAI(
+    model="moonshotai/kimi-k2-instruct-0905",
+    base_url="http://host.docker.internal:8080/api/Groq/",
+    api_key=os.environ.get("GROQ_API_KEY"),
 )
+
 browser = Browser(
     allowed_domains=[BASE_URL],
-    keep_alive=True,
+    # se for modo http, usar keep_alive=True para manter a sessão
+    keep_alive=(transport_mode == "http"),
+    highlight_elements=True,
 )
+
+tools = Tools()
 # sensitive_data = {
 #     "x_user": os.environ.get("SIGAA_USERNAME"),
 #     "x_pass": os.environ.get("SIGAA_PASSWORD"),
@@ -98,55 +110,59 @@ async def esperar_elemento(
     return None
 
 
-# Função de login adaptada para uso no lifespan
-async def login_sigaa():
+# Função auxiliar para realizar o login em uma página
+async def perform_login(page):
+    """
+    Realiza o login no SIGAA UFPA na página fornecida.
+    """
+    # Espera dinâmica pelo campo de usuário
+    campo_usuario = await esperar_elemento(
+        page,
+        "#conteudo > div.logon > form > table > tbody > tr:nth-child(1) > td > input[type=text]",
+        timeout=20.0,
+        poll_interval=0.5,
+    )
+    if not campo_usuario:
+        raise Exception("Campo de usuário não encontrado na tela de login.")
+    await campo_usuario.fill(os.environ.get("SIGAA_USERNAME"))
+
+    # Espera dinâmica pelo campo de senha
+    campo_senha = await esperar_elemento(
+        page,
+        "#conteudo > div.logon > form > table > tbody > tr:nth-child(2) > td > input[type=password]",
+        timeout=10.0,
+        poll_interval=0.5,
+    )
+    if not campo_senha:
+        raise Exception("Campo de senha não encontrado na tela de login.")
+    await campo_senha.fill(os.environ.get("SIGAA_PASSWORD"))
+
+    # Espera dinâmica pelo botão de submit
+    botao_submit = await esperar_elemento(
+        page,
+        "#conteudo > div.logon > form > table > tfoot > tr > td > input[type=submit]",
+        timeout=10.0,
+        poll_interval=0.5,
+    )
+    if not botao_submit:
+        raise Exception("Botão de login não encontrado na tela de login.")
+    await botao_submit.click()
+
+
+# Função de login adaptada para uso como ferramenta do browser-use
+@tools.action(
+    description="Perform login to SIGAA UFPA system using provided credentials from environment variables"
+)
+async def login_sigaa(browser_session: BrowserSession) -> str:
     try:
-        await browser.start()
-        page = await browser.get_current_page()
+        # Obter a página atual do BrowserSession usando o método correto
+        page = await browser_session.get_current_page()
         await page.goto(BASE_URL)
-
-        # Espera dinâmica pelo campo de usuário
-        campo_usuario = await esperar_elemento(
-            page,
-            "#conteudo > div.logon > form > table > tbody > tr:nth-child(1) > td > input[type=text]",
-            timeout=20.0,
-            poll_interval=0.5,
-        )
-        if not campo_usuario:
-            raise Exception("Campo de usuário não encontrado na tela de login.")
-        await campo_usuario.fill(os.environ.get("SIGAA_USERNAME"))
-
-        # Espera dinâmica pelo campo de senha
-        campo_senha = await esperar_elemento(
-            page,
-            "#conteudo > div.logon > form > table > tbody > tr:nth-child(2) > td > input[type=password]",
-            timeout=10.0,
-            poll_interval=0.5,
-        )
-        if not campo_senha:
-            raise Exception("Campo de senha não encontrado na tela de login.")
-        await campo_senha.fill(os.environ.get("SIGAA_PASSWORD"))
-
-        # Espera dinâmica pelo botão de submit
-        botao_submit = await esperar_elemento(
-            page,
-            "#conteudo > div.logon > form > table > tfoot > tr > td > input[type=submit]",
-            timeout=10.0,
-            poll_interval=0.5,
-        )
-        if not botao_submit:
-            raise Exception("Botão de login não encontrado na tela de login.")
-        await botao_submit.click()
-
-        startup_status["success"] = True
-        startup_status["message"] = "Login realizado com sucesso"
-        startup_status["logged_in"] = True
-        logger.info("Login SIGAA realizado com sucesso.")
+        await perform_login(page)
+        return "Login to SIGAA UFPA completed successfully."
     except Exception as e:
-        startup_status["success"] = False
-        startup_status["message"] = f"Erro no login SIGAA: {e}"
-        startup_status["logged_in"] = False
         logger.error(f"Erro no login SIGAA: {e}")
+        return f"Login failed: {e}"
 
 
 # Lifespan async para FastMCP
@@ -155,7 +171,12 @@ async def lifespan_manager(app):
     logger.info("🚀 Iniciando servidor MCP...")
     try:
         # await login_sigaa()
-        # logger.info("✅ Função de startup (login_sigaa) executada com sucesso")
+        if transport_mode == "http":
+            await browser.start()
+            page = await browser.get_current_page()
+            await page.goto(BASE_URL)
+            await perform_login(page)
+            logger.info("✅ Função de startup (login_sigaa) executada com sucesso")
         yield
     except Exception as e:
         logger.error(f"❌ Erro na inicialização: {e}")
@@ -192,8 +213,15 @@ async def reiniciar_sessao() -> Dict[str, Any]:
     """
     global startup_status
     try:
-        await browser.stop()
-        await login_sigaa()
+        # await browser.stop()
+        # await browser.start()
+        page = await browser.get_current_page()
+        await page.goto(BASE_URL)
+        await perform_login(page)
+
+        startup_status["success"] = True
+        startup_status["message"] = "Login realizado com sucesso"
+        startup_status["logged_in"] = True
         return {
             "success": startup_status["success"],
             "message": startup_status["message"],
@@ -201,6 +229,9 @@ async def reiniciar_sessao() -> Dict[str, Any]:
         }
     except Exception as e:
         logger.error(f"Erro ao reiniciar sessão: {e}")
+        startup_status["success"] = False
+        startup_status["message"] = f"Erro no login SIGAA: {e}"
+        startup_status["logged_in"] = False
         return {"success": False, "error": str(e)}
 
 
@@ -211,6 +242,7 @@ async def baixar_historico_escolar() -> Dict[str, Any]:
     Baixa o histórico escolar completo do aluno em PDF e retorna o caminho do arquivo salvo.
     """
     prompt = """
+    If you are not logged in, use the login_sigaa tool to log in first.
     1. Se aparecer Selecione o Ano-Período mais atual
     2. Se aparecer Selecione o Portal do Discente
     3. Clique em Ensino
@@ -219,12 +251,16 @@ async def baixar_historico_escolar() -> Dict[str, Any]:
     Obs.: Durante o período de processamento de matricula não é possível emitir histórico"""
 
     try:
-        await login_sigaa()
         result = await Agent(
             task=prompt,
+            use_vision=False,
+            max_failures=7,
+            step_timeout=120,
+            llm_timeout=90,
             browser=browser,
             # sensitive_data=sensitive_data,
             llm=llm,
+            tools=tools,
         ).run()
         return result
     except Exception as e:
@@ -241,7 +277,8 @@ async def listar_disciplinas_ofertadas(
     """
     Lista todas as disciplinas ofertadas no semestre atual para o curso e turno informados.
     """
-    prompt = f""" Para o curso de {curso} e turno {turno}, liste todas as disciplinas ofertadas no semestre atual.
+    prompt = f"""If you are not logged in, use the login_sigaa tool to log in first.
+ Para o curso de {curso} e turno {turno}, liste todas as disciplinas ofertadas no semestre atual.
     # Como entrar no SIGAA UFPA e Listar disciplinas ofertas do semestre
 ## **1. Acessando o Portal do Discente**
 
@@ -296,12 +333,16 @@ async def listar_disciplinas_ofertadas(
     """
 
     try:
-        await login_sigaa()
         result = await Agent(
             task=prompt,
+            use_vision=False,
+            max_failures=7,
+            step_timeout=120,
+            llm_timeout=90,
             browser=browser,
             # sensitive_data=sensitive_data,
             llm=llm,
+            tools=tools,
         ).run()
         return result
     except Exception as e:
@@ -316,6 +357,7 @@ async def exportar_horarios_csv() -> Dict[str, Any]:
     Exporta todos os horários de aula do aluno no semestre atual em formato CSV.
     """
     prompt = """
+    If you are not logged in, use the login_sigaa tool to log in first.
     Obs.: Os horários de aula podem ser encontrados na seção de "Turmas do Semestre" e no Atestado de Matrícula.
     1. Se aparecer Selecione o Ano-Período mais atual
     2. Se aparecer Selecione o Portal do Discente
@@ -324,13 +366,16 @@ async def exportar_horarios_csv() -> Dict[str, Any]:
     """
 
     try:
-        await login_sigaa()
-
         result = await Agent(
             task=prompt,
+            use_vision=False,
+            max_failures=7,
+            step_timeout=120,
+            llm_timeout=90,
             browser=browser,
             # sensitive_data=sensitive_data,
             llm=llm,
+            tools=tools,
         ).run()
         return result
     except Exception as e:
@@ -345,6 +390,7 @@ async def listar_avisos_turmas() -> Dict[str, Any]:
     Lista todos os avisos/comunicados recentes das turmas em que o aluno está matriculado.
     """
     prompt = """
+    If you are not logged in, use the login_sigaa tool to log in first.
     Obs.: Os horários de aula podem ser encontrados na seção de "Turmas do Semestre" e no Atestado de Matrícula.
     1. Se aparecer Selecione o Ano-Período mais atual
     2. Se aparecer Selecione o Portal do Discente
@@ -355,13 +401,16 @@ async def listar_avisos_turmas() -> Dict[str, Any]:
     4. Repita para todas as turmas
     """
     try:
-        await login_sigaa()
-
         result = await Agent(
             task=prompt,
+            use_vision=False,
+            max_failures=7,
+            step_timeout=120,
+            llm_timeout=90,
             browser=browser,
             # sensitive_data=sensitive_data,
             llm=llm,
+            tools=tools,
         ).run()
         return result
     except Exception as e:
@@ -372,7 +421,6 @@ async def listar_avisos_turmas() -> Dict[str, Any]:
 if __name__ == "__main__":
     try:
         logger.info(os.environ)
-        transport_mode = os.getenv("MCP_TRANSPORT", "stdio")
         if transport_mode == "http":
             logger.info("Iniciando servidor MCP em modo HTTP...")
             mcp.run(transport="http", host="0.0.0.0", port=8000)

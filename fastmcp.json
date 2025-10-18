@@ -5,21 +5,8 @@
         "path": "server.py",
         "entrypoint": "mcp"
     },
-    "environment": {
-        "type": "uv",
-        "python": ">=3.11",
-        "dependencies": [
-            "browser-use>=0.7.9",
-            "fastapi>=0.118.0",
-            "fastmcp>=2.12.4",
-            "pypdf>=6.1.1",
-            "python-dotenv>=1.1.1",
-            "uvicorn>=0.37.0",
-            "pydantic>=2.0.0"
-        ]
-    },
     "deployment": {
-        "transport": "stdio",
+        "transport": "http",
         "log_level": "INFO"
     }
 }
