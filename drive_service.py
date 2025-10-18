@@ -1,6 +1,5 @@
 import io
 import base64
-import logging
 import os
 from typing import List, Dict, Optional
 
@@ -9,6 +8,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload, MediaIoBaseUpload
+from loguru import logger
 
 from dotenv import load_dotenv
 
@@ -84,9 +84,9 @@ class GoogleDriveService:
         try:
             creds = self._get_oauth_credentials()
             self.service = build("drive", "v3", credentials=creds)
-            logging.info("Google Drive service inicializado com sucesso (OAuth).")
+            logger.info("Google Drive service inicializado com sucesso (OAuth).")
         except Exception as e:
-            logging.error(f"Erro ao inicializar Google Drive service: {e}")
+            logger.error(f"Erro ao inicializar Google Drive service: {e}")
             raise
 
     def _get_oauth_credentials(self):
@@ -138,7 +138,7 @@ class GoogleDriveService:
             )
             return resultados.get("files", [])
         except Exception as e:
-            logging.error(f"Erro ao listar arquivos: {e}")
+            logger.error(f"Erro ao listar arquivos: {e}")
             return []
 
     def download_em_base64(self, file_id: str) -> Optional[str]:
@@ -162,7 +162,7 @@ class GoogleDriveService:
             encoded = base64.b64encode(buffer.read()).decode("utf-8")
             return encoded
         except Exception as e:
-            logging.error(f"Erro ao fazer download do arquivo {file_id}: {e}")
+            logger.error(f"Erro ao fazer download do arquivo {file_id}: {e}")
             return None
 
     def obter_mime_type(self, file_id: str) -> Optional[str]:
@@ -179,7 +179,7 @@ class GoogleDriveService:
             info = self.service.files().get(fileId=file_id, fields="mimeType").execute()
             return info.get("mimeType")
         except Exception as e:
-            logging.error(f"Erro ao obter MIME type: {e}")
+            logger.error(f"Erro ao obter MIME type: {e}")
             return None
 
     def download_com_data_uri(self, file_id: str) -> Optional[str]:
@@ -246,13 +246,13 @@ class GoogleDriveService:
                 .execute()
             )
 
-            logging.info(
+            logger.info(
                 f"Arquivo {nome_no_drive} enviado com sucesso (ID: {arquivo['id']})"
             )
             return arquivo
 
         except Exception as e:
-            logging.error(f"Erro ao fazer upload do arquivo {caminho_local}: {e}")
+            logger.error(f"Erro ao fazer upload do arquivo {caminho_local}: {e}")
             return None
 
     def upload_bytes(
@@ -296,13 +296,13 @@ class GoogleDriveService:
                 .execute()
             )
 
-            logging.info(
+            logger.info(
                 f"Arquivo {nome_no_drive} enviado com sucesso (ID: {arquivo['id']})"
             )
             return arquivo
 
         except Exception as e:
-            logging.error(f"Erro ao fazer upload de bytes como {nome_no_drive}: {e}")
+            logger.error(f"Erro ao fazer upload de bytes como {nome_no_drive}: {e}")
             return None
 
     def upload_temp_images(
@@ -335,6 +335,6 @@ class GoogleDriveService:
                 }
                 uploaded_files.append(file_info)
             else:
-                logging.warning(f"Falha ao fazer upload da imagem {filename}")
+                logger.warning(f"Falha ao fazer upload da imagem {filename}")
 
         return uploaded_files

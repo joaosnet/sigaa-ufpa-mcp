@@ -1,49 +1,30 @@
 import os
-import sys
-import logging
 from typing import Any, Dict
 from browser_use import Agent, Browser, BrowserSession, Tools
 
 from browser_use.llm.google import ChatGoogle
 from fastmcp import FastMCP
-from pydantic import Field
-
+from pydantic import BaseModel, Field
+from browser_use.actor.page import Page
 from dotenv import load_dotenv
 import warnings
 import asyncio
 from contextlib import asynccontextmanager
+import drive_service
+import tempfile
+import base64
+from loguru import logger
+import logging
 
-# Configuração global de logging para stderr
-logging.basicConfig(
-    stream=sys.stderr,
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+# Interceptar logs do logging padrão para passar pelo loguru
+class InterceptHandler(logging.Handler):
+    def emit(self, record):
+        logger_opt = logger.opt(depth=6, exception=record.exc_info)
+        logger_opt.log(record.levelname, record.getMessage())
 
-
-# Função para configurar todos os loggers para usar stderr
-def configure_all_loggers():
-    """
-    Configura todos os loggers registrados no sistema para usar stderr e nível INFO
-    """
-    # Configura o root logger
-    global logger
-    logger = logging.getLogger()
-    logger.handlers.clear()
-    logger.addHandler(logging.StreamHandler(sys.stderr))
-    logger.setLevel(logging.INFO)
-
-    # Itera sobre todos os loggers registrados
-    for logger_name, logger_instance in logging.Logger.manager.loggerDict.items():
-        if isinstance(logger_instance, logging.Logger):
-            logger_instance.handlers.clear()
-            logger_instance.addHandler(logging.StreamHandler(sys.stderr))
-            logger_instance.setLevel(logging.INFO)
-            logger_instance.propagate = False  # Evita duplicação de logs
-
-
-# Executa a configuração
-configure_all_loggers()
+# Limpar handlers padrão e adicionar o intercept
+logging.getLogger().handlers.clear()
+logging.getLogger().addHandler(InterceptHandler())
 
 warnings.filterwarnings("ignore", message="websockets.legacy is deprecated")
 warnings.filterwarnings(
@@ -64,11 +45,6 @@ llm = ChatGoogle(
     model="gemini-flash-latest",
 )
 
-# llm = ChatOpenAI(
-#     model="moonshotai/kimi-k2-instruct-0905",
-#     base_url="http://host.docker.internal:8080/api/Groq/",
-#     api_key=os.environ.get("GROQ_API_KEY"),
-# )
 
 browser = Browser(
     allowed_domains=[BASE_URL],
@@ -86,7 +62,7 @@ tools = Tools()
 
 
 async def esperar_elemento(
-    page, selector: str, timeout: float = 15.0, poll_interval: float = 0.5
+    page: Page, selector: str, timeout: float = 15.0, poll_interval: float = 0.5
 ):
     """
     Espera até que um elemento esteja presente na página.
@@ -112,8 +88,42 @@ async def esperar_elemento(
     return None
 
 
+async def esperar_extracao_dados(
+    page: Page,
+    prompt: str,
+    model: BaseModel,
+    llm,
+    timeout: float = 15.0,
+    poll_interval: float = 0.5,
+):
+    """
+    Espera até que os dados sejam extraídos corretamente da página.
+    :param page: instância da página (browser_use.Page)
+    :param prompt: prompt para extração
+    :param model: modelo Pydantic para os dados
+    :param llm: instância do LLM
+    :param timeout: tempo máximo de espera em segundos
+    :param poll_interval: intervalo entre tentativas em segundos
+    :return: objeto extraído ou None se não conseguir
+    """
+    import time
+
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            data = await page.extract_content(prompt, llm=llm)
+            print(data)
+            return data
+        except Exception:
+            # Pode ser que os dados ainda não estejam prontos
+            pass
+        await asyncio.sleep(poll_interval)
+    logger.warning(f"Dados não extraídos após {timeout}s.")
+    return None
+
+
 # Função auxiliar para realizar o login em uma página
-async def perform_login(page):
+async def perform_login_discente(page):
     """
     Realiza o login no SIGAA UFPA na página fornecida.
     """
@@ -140,24 +150,27 @@ async def perform_login(page):
     await campo_senha.fill(os.environ.get("SIGAA_PASSWORD"))
 
     # Espera dinâmica pelo botão de submit
-    botao_submit = await esperar_elemento(
+    botao = await esperar_elemento(
         page,
         "#conteudo > div.logon > form > table > tfoot > tr > td > input[type=submit]",
         timeout=10.0,
         poll_interval=0.5,
     )
-    if not botao_submit:
+    if not botao:
         raise Exception("Botão de login não encontrado na tela de login.")
-    await botao_submit.click()
+    await botao.click()
+    # Clicando em Menu do Discente
+    botao = await esperar_elemento(page, ".menus")
+    await botao.click()
 
 
-async def full_login_procedure():
+async def full_login_procedure_discente():
     global startup_status
     try:
         await browser.start()
         page = await browser.get_current_page()
         await page.goto(BASE_URL)
-        await perform_login(page)
+        await perform_login_discente(page)
         startup_status["success"] = True
         startup_status["message"] = "Login realizado com sucesso"
         startup_status["logged_in"] = True
@@ -178,7 +191,7 @@ async def login_sigaa(browser_session: BrowserSession) -> str:
         # Obter a página atual do BrowserSession usando o método correto
         page = await browser_session.get_current_page()
         await page.goto(BASE_URL)
-        await perform_login(page)
+        await perform_login_discente(page)
         return "Login to SIGAA UFPA completed successfully."
     except Exception as e:
         logger.error(f"Erro no login SIGAA: {e}")
@@ -192,7 +205,7 @@ async def lifespan_manager(app):
     try:
         # await login_sigaa()
         if transport_mode == "http":
-            await full_login_procedure()
+            await full_login_procedure_discente()
         yield
     except Exception as e:
         logger.error(f"❌ Erro na inicialização: {e}")
@@ -221,15 +234,27 @@ def get_status_login():
     }
 
 
+@mcp.resource("resource://drive-images")
+def get_drive_images():
+    try:
+        service = drive_service.GoogleDriveService()
+        files = service.listar_arquivos_na_pasta()
+        images = [f for f in files if f.get("mimeType", "").startswith("image/")]
+        return {"images": images}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # Ferramenta 0 para http: Reiniciar sessão do navegador e relogar
 if transport_mode == "http":
+
     @mcp.tool()
     async def reiniciar_sessao() -> Dict[str, Any]:
         """
         Reinicia a sessão do navegador e realiza o login novamente.
         """
         global startup_status
-        await full_login_procedure()
+        await full_login_procedure_discente()
         return {
             "success": startup_status["success"],
             "message": startup_status["message"],
@@ -254,7 +279,7 @@ async def baixar_historico_escolar() -> Dict[str, Any]:
 
     try:
         if transport_mode == "studio":
-            await full_login_procedure()
+            await full_login_procedure_discente()
         result = await Agent(
             task=prompt,
             use_vision=False,
@@ -338,13 +363,10 @@ async def listar_disciplinas_ofertadas(
 
     try:
         if transport_mode == "studio":
-            await full_login_procedure()
+            await full_login_procedure_discente()
         result = await Agent(
             task=prompt,
             use_vision=False,
-            max_failures=7,
-            step_timeout=120,
-            llm_timeout=90,
             browser=browser,
             # sensitive_data=sensitive_data,
             llm=llm,
@@ -373,13 +395,10 @@ async def exportar_horarios_csv() -> Dict[str, Any]:
 
     try:
         if transport_mode == "studio":
-            await full_login_procedure()
+            await full_login_procedure_discente()
         result = await Agent(
             task=prompt,
             use_vision=False,
-            max_failures=7,
-            step_timeout=120,
-            llm_timeout=90,
             browser=browser,
             # sensitive_data=sensitive_data,
             llm=llm,
@@ -410,13 +429,10 @@ async def listar_avisos_turmas() -> Dict[str, Any]:
     """
     try:
         if transport_mode == "studio":
-            await full_login_procedure()
+            await full_login_procedure_discente()
         result = await Agent(
             task=prompt,
             use_vision=False,
-            max_failures=7,
-            step_timeout=120,
-            llm_timeout=90,
             browser=browser,
             # sensitive_data=sensitive_data,
             llm=llm,
@@ -428,9 +444,147 @@ async def listar_avisos_turmas() -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
+# Ferramenta 5: Trocar a Imagem de Perfil do Discente e Descrição
+@mcp.tool()
+async def trocar_imagem_perfil(
+    drive_file_id: str = Field(
+        ..., description="ID do arquivo de imagem no Google Drive"
+    ),
+    descricao: str = Field("", description="Nova descrição para o perfil (opcional)"),
+) -> Dict[str, Any]:
+    """
+    Troca a imagem de perfil do discente e atualiza a descrição usando Actor sem LLM.
+    """
+    from browser_use.actor import Actor
+
+    temp_image_path = None
+    try:
+        service = drive_service.GoogleDriveService()
+        b64 = service.download_em_base64(drive_file_id)
+        if not b64:
+            raise Exception("Falha ao baixar imagem do Drive")
+        
+        image_bytes = base64.b64decode(b64)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
+            temp_file.write(image_bytes)
+            temp_image_path = temp_file.name
+
+        if transport_mode == "studio":
+            await full_login_procedure_discente()
+        
+        page = await browser.get_current_page()
+        
+        # Extrair CPF e Data de Nascimento dos dados pessoais
+        botao = await esperar_elemento(
+            page, r"#j_id_jsp_612222572_250\:meusDadosPessoais"
+        )
+        await botao.click()
+        await esperar_elemento(
+            page, ".formulario > tbody:nth-child(2) > tr:nth-child(5) > td:nth-child(2)"
+        )
+
+        # Usar Actor sem LLM para extrair dados
+        actor = Actor(
+            browser=browser,
+            llm=None  # Sem LLM
+        )
+        
+        # Extrair Data de Nascimento (linha 5, coluna 2)
+        data_nascimento_element = await esperar_elemento(
+            page, ".formulario > tbody:nth-child(2) > tr:nth-child(5) > td:nth-child(2)"
+        )
+        data_nascimento = await data_nascimento_element.get_text() if data_nascimento_element else ""
+        
+        # Extrair CPF (linha 13, coluna 2)
+        cpf_element = await esperar_elemento(
+            page, ".formulario > tbody:nth-child(2) > tr:nth-child(13) > td:nth-child(2)"
+        )
+        cpf = await cpf_element.get_text() if cpf_element else ""
+        
+        logger.info(f"Dados extraídos - Data: {data_nascimento}, CPF: {cpf}")
+        
+        # Clicar em Menu do Discente
+        botao = await esperar_elemento(page, ".menus")
+        await botao.click()
+        
+        # Clicar em Atualizar Foto e Perfil
+        botao = await esperar_elemento(page, ".perfil")
+        await botao.click()
+        
+        # Usar Actor sem LLM para preencher formulário
+        actor = Actor(
+            browser=browser,
+            llm=None
+        )
+        
+        # Passo 1: Upload da imagem
+        file_input = await esperar_elemento(page, "input[type='file']")
+        if file_input:
+            await file_input.upload_file(temp_image_path)
+            logger.info(f"✅ Arquivo de imagem enviado: {temp_image_path}")
+            await asyncio.sleep(1)
+        
+        # Passo 2: Preencher descrição
+        descricao_input = await esperar_elemento(page, "textarea[name*='descricao'], input[name*='descricao']")
+        if descricao_input and descricao:
+            await descricao_input.fill(descricao, clear=True)
+            logger.info(f"✅ Descrição preenchida: {descricao}")
+        
+        # Passo 3: Clicar em "Gravar perfil"
+        botao_gravar = await esperar_elemento(page, "input[type='submit'][value*='Gravar'], button:has-text('Gravar')")
+        if botao_gravar:
+            await botao_gravar.click()
+            logger.info("✅ Botão 'Gravar perfil' clicado")
+            await asyncio.sleep(2)
+        
+        # Passo 4: Confirmação com CPF/Senha
+        # Verificar se aparecer modal de confirmação
+        cpf_input = await esperar_elemento(page, "input[name*='cpf']", timeout=5.0)
+        if cpf_input:
+            await cpf_input.fill(cpf.replace(".", "").replace("-", ""), clear=True)
+            logger.info("✅ CPF preenchido para confirmação")
+            await asyncio.sleep(0.5)
+        
+        # Preencher senha
+        senha_input = await esperar_elemento(page, "input[type='password']", timeout=5.0)
+        if senha_input:
+            senha = os.environ.get("SIGAA_PASSWORD")
+            await senha_input.fill(senha, clear=True)
+            logger.info("✅ Senha preenchida para confirmação")
+            await asyncio.sleep(0.5)
+        
+        # Clicar no botão de confirmação
+        botao_confirmar = await esperar_elemento(page, "input[type='submit'][value*='Confirmar'], button:has-text('Confirmar')", timeout=5.0)
+        if botao_confirmar:
+            await botao_confirmar.click()
+            logger.info("✅ Confirmação enviada")
+            await asyncio.sleep(2)
+        
+        logger.info("✅ Perfil atualizado com sucesso!")
+        return {
+            "success": True,
+            "message": "Perfil do discente atualizado com sucesso",
+            "imagem_carregada": True,
+            "descricao_atualizada": bool(descricao),
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao trocar imagem de perfil: {e}")
+        return {"success": False, "error": str(e)}
+    
+    finally:
+        # Limpar arquivo temporário
+        if temp_image_path:
+            try:
+                os.unlink(temp_image_path)
+                logger.info(f"✅ Arquivo temporário removido: {temp_image_path}")
+            except Exception as e:
+                logger.warning(f"Não foi possível remover arquivo temporário: {e}")
+
+
 if __name__ == "__main__":
     try:
-        logger.info(os.environ)
+        # logger.info(os.environ)
         if transport_mode == "http":
             logger.info("Iniciando servidor MCP em modo HTTP...")
             mcp.run(transport="http", host="0.0.0.0", port=8000)
