@@ -61,7 +61,7 @@ docker build -t sigaa-ufpa-mcp .
     "sigaa-ufpa": {
       "name": "SIGAA UFPA MCP Server (Docker Compose)",
       "type": "streamable-http",
-      "url": "http://localhost:8000/mcp",
+      "url": "http://localhost:8003/mcp",
       "disabled": false,
       "alwaysAllow": [
         "reiniciar_sessao",
@@ -90,7 +90,7 @@ Ideal para manter o servidor rodando como um serviço de fundo, com reinicializa
 docker-compose up -d
 ```
 
-- O servidor estará acessível na porta `8000`.
+- O servidor estará acessível na porta `8003`.
 - Você pode monitorar os logs com `docker-compose logs -f`.
 - A interface gráfica pode ser acessada via VNC no endereço `localhost:5900` (senha padrão: `browser-use`).
 - A interface gráfica também pode ser acessada via noVNC no navegador em `http://localhost:6080/vnc.html?autoconnect=1&resize=scale&password=browser-use`.
@@ -139,7 +139,7 @@ Adicione a seguinte configuração ao seu cliente MCP. Este método é o mais re
         "-e", "LOG_LEVEL=INFO",
         "-e", "CHROME_HEADLESS=false",
         "-p",
-        "8000:8000",
+        "8003:8003",
         "-p",
         "5900:5900",
         "-p",

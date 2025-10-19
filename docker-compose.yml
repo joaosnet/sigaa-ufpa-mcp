@@ -3,7 +3,7 @@ services:
     build: .
     container_name: sigaa-ufpa-mcp
     ports:
-      - "8000:8000"
+      - "8003:8003"
       - "6080:6080"  # noVNC port for web access
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
@@ -11,7 +11,7 @@ services:
       - SIGAA_PASSWORD=${SIGAA_PASSWORD}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - MCP_SERVER_HOST=0.0.0
-      - MCP_SERVER_PORT=8000
+      - MCP_SERVER_PORT=8003
       - LOG_LEVEL=INFO
       - MCP_TRANSPORT=http
     volumes:
