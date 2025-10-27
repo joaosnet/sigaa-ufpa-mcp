@@ -17,7 +17,7 @@ services:
     volumes:
       - ./downloads:/root/Downloads  # Downloads do navegador
       - ./screenshots:/app/screenshots  # Screenshots capturados
-    restart: unless-stopped
+    restart: always
     develop:  # Configuração do Docker Compose Watch
       watch:
         - path: .
