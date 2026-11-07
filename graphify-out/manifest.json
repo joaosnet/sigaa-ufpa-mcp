@@ -1,62 +1,194 @@
 {
   "catalogo_docker_sigaa_ufpa.yaml": {
-    "mtime": 1759452187.2146437,
-    "seen": 1794070690.5184016,
-    "ast_hash": "f19b18b2ef2369c0a24a71e74324689a",
-    "semantic_hash": ""
+    "mtime": 1794076816.0561824,
+    "seen": 1794079080.0014453,
+    "ast_hash": "a8b886625ab0879d7f78e346b63aeebb",
+    "semantic_hash": "a8b886625ab0879d7f78e346b63aeebb"
   },
   "docker-compose.yml": {
-    "mtime": 1761572455.7173917,
-    "seen": 1794070690.5184078,
-    "ast_hash": "318b54c95a74c9647316338886221582",
-    "semantic_hash": ""
+    "mtime": 1794078707.026955,
+    "seen": 1794079080.001457,
+    "ast_hash": "eb36bb54df68543f9a59a4a4fce88af7",
+    "semantic_hash": "eb36bb54df68543f9a59a4a4fce88af7"
   },
   "drive_service.py": {
-    "mtime": 1760810611.9336221,
-    "seen": 1794070690.5184104,
-    "ast_hash": "0e7a05ec62907f2c3ef89647db853d71",
-    "semantic_hash": ""
+    "mtime": 1794077535.6369553,
+    "seen": 1794079080.001462,
+    "ast_hash": "3294c6a254e231bf0c0524003556f344",
+    "semantic_hash": "3294c6a254e231bf0c0524003556f344"
   },
   "fastmcp.json": {
-    "mtime": 1760746865.7151604,
-    "seen": 1794070690.5184119,
-    "ast_hash": "36de6547f28b8d9ca21dd180853988d3",
-    "semantic_hash": ""
+    "mtime": 1794078445.7063885,
+    "seen": 1794079080.001465,
+    "ast_hash": "dbc5ee643ee6e9d38f1ca505a1a896ff",
+    "semantic_hash": "dbc5ee643ee6e9d38f1ca505a1a896ff"
+  },
+  "mcp.json": {
+    "mtime": 1794076814.552364,
+    "seen": 1794079080.001468,
+    "ast_hash": "9feb701e1709211da11ba15fd43f1a07",
+    "semantic_hash": "9feb701e1709211da11ba15fd43f1a07"
   },
   "pyproject.toml": {
-    "mtime": 1760811091.7587636,
-    "seen": 1794070690.518413,
-    "ast_hash": "e6b97c96d2aad7af33115f24a1b30783",
-    "semantic_hash": ""
+    "mtime": 1794078828.6819742,
+    "seen": 1794079080.0014706,
+    "ast_hash": "1d9db3e5281fe72eb3850b3969913c57",
+    "semantic_hash": "1d9db3e5281fe72eb3850b3969913c57"
   },
   "server.py": {
-    "mtime": 1760895194.471679,
-    "seen": 1794070690.518414,
-    "ast_hash": "7a00f548acc0f6e096acaf8cd3698ce4",
-    "semantic_hash": ""
+    "mtime": 1794078643.8776398,
+    "seen": 1794079080.0014732,
+    "ast_hash": "eea05e33c97bbce0918dffe2521d9581",
+    "semantic_hash": "eea05e33c97bbce0918dffe2521d9581"
   },
-  "README.es.md": {
-    "mtime": 1794070605.8578844,
-    "seen": 1794070690.5184152,
-    "ast_hash": "efdf796bf76e4be79f769738d217323e",
-    "semantic_hash": ""
+  "sigaa_mcp/__init__.py": {
+    "mtime": 1794077287.7036629,
+    "seen": 1794079080.0014756,
+    "ast_hash": "6c0e7f44b6cbe5e31f69700a18b49b94",
+    "semantic_hash": "6c0e7f44b6cbe5e31f69700a18b49b94"
   },
-  "README.md": {
-    "mtime": 1794070605.8578844,
-    "seen": 1794070690.5184162,
-    "ast_hash": "1206249a07c0134f975c89fdfbed2b93",
-    "semantic_hash": ""
+  "sigaa_mcp/apps/__init__.py": {
+    "mtime": 1794078172.4956172,
+    "seen": 1794079080.001478,
+    "ast_hash": "1f98109eaba385303e3209d9e9fb09f2",
+    "semantic_hash": "1f98109eaba385303e3209d9e9fb09f2"
   },
-  "README.pt-BR.md": {
-    "mtime": 1794070605.8578844,
-    "seen": 1794070690.5184171,
-    "ast_hash": "51e85b22496c5ddd8d51fbe123b1fbc3",
-    "semantic_hash": ""
+  "sigaa_mcp/apps/auth_app.py": {
+    "mtime": 1794078174.3641467,
+    "seen": 1794079080.00148,
+    "ast_hash": "ee02eace9c4ae2afd139ae0c01e8cd17",
+    "semantic_hash": "ee02eace9c4ae2afd139ae0c01e8cd17"
   },
-  "assets/demo-preview.svg": {
-    "mtime": 1794070559.526059,
-    "seen": 1794070690.518418,
-    "ast_hash": "62a68366196ac4abacb620c67b31287f",
-    "semantic_hash": ""
+  "sigaa_mcp/apps/painel_app.py": {
+    "mtime": 1794078176.2950287,
+    "seen": 1794079080.0014822,
+    "ast_hash": "b2131a144f78f7a01c05074ecaa3bf4e",
+    "semantic_hash": "b2131a144f78f7a01c05074ecaa3bf4e"
+  },
+  "sigaa_mcp/apps/perfil_app.py": {
+    "mtime": 1794078378.1508083,
+    "seen": 1794079080.0014853,
+    "ast_hash": "90c5c7ad92b7a76ce4b6072558038f43",
+    "semantic_hash": "90c5c7ad92b7a76ce4b6072558038f43"
+  },
+  "sigaa_mcp/apps/turmas_app.py": {
+    "mtime": 1794078178.1446216,
+    "seen": 1794079080.0014877,
+    "ast_hash": "cbdb1e155249662e57f054b385be23eb",
+    "semantic_hash": "cbdb1e155249662e57f054b385be23eb"
+  },
+  "sigaa_mcp/auth.py": {
+    "mtime": 1794078827.1780467,
+    "seen": 1794079080.0014896,
+    "ast_hash": "d7dafadda7d4a33b868cf420048d9959",
+    "semantic_hash": "d7dafadda7d4a33b868cf420048d9959"
+  },
+  "sigaa_mcp/config.py": {
+    "mtime": 1794077289.5499144,
+    "seen": 1794079080.0014918,
+    "ast_hash": "c7ec73b7687d950be571a4f0feeb4e45",
+    "semantic_hash": "c7ec73b7687d950be571a4f0feeb4e45"
+  },
+  "sigaa_mcp/drive_service.py": {
+    "mtime": 1794077534.2061057,
+    "seen": 1794079080.0014935,
+    "ast_hash": "024c653fb677784a37d19851772ce747",
+    "semantic_hash": "024c653fb677784a37d19851772ce747"
+  },
+  "sigaa_mcp/flows/__init__.py": {
+    "mtime": 1794077963.2713287,
+    "seen": 1794079080.0014954,
+    "ast_hash": "dd1d19d488299c2ce5e4ac59eb503c83",
+    "semantic_hash": "dd1d19d488299c2ce5e4ac59eb503c83"
+  },
+  "sigaa_mcp/flows/academico.py": {
+    "mtime": 1794077965.1937006,
+    "seen": 1794079080.001497,
+    "ast_hash": "cb327c3cc108998ff8ff85b15d74fc9d",
+    "semantic_hash": "cb327c3cc108998ff8ff85b15d74fc9d"
+  },
+  "sigaa_mcp/flows/perfil.py": {
+    "mtime": 1794077968.7510283,
+    "seen": 1794079080.001499,
+    "ast_hash": "421987c5f908aaafb4a24d4f62023b02",
+    "semantic_hash": "421987c5f908aaafb4a24d4f62023b02"
+  },
+  "sigaa_mcp/flows/turmas.py": {
+    "mtime": 1794077966.7585187,
+    "seen": 1794079080.0015008,
+    "ast_hash": "438fd14f4e681af786d984dc85d7fb85",
+    "semantic_hash": "438fd14f4e681af786d984dc85d7fb85"
+  },
+  "sigaa_mcp/parsers.py": {
+    "mtime": 1794077733.9087217,
+    "seen": 1794079080.0015028,
+    "ast_hash": "5a8f54f27ef6ffd9d3ca1a6264ff6819",
+    "semantic_hash": "5a8f54f27ef6ffd9d3ca1a6264ff6819"
+  },
+  "sigaa_mcp/prompts.py": {
+    "mtime": 1794078356.3713484,
+    "seen": 1794079080.0015047,
+    "ast_hash": "937d98ffe91ade3cd3cc3f57ee56334d",
+    "semantic_hash": "937d98ffe91ade3cd3cc3f57ee56334d"
+  },
+  "sigaa_mcp/resources.py": {
+    "mtime": 1794078358.3835897,
+    "seen": 1794079080.0015078,
+    "ast_hash": "239c98a7af001739bbba6dfa161458b0",
+    "semantic_hash": "239c98a7af001739bbba6dfa161458b0"
+  },
+  "sigaa_mcp/schemas.py": {
+    "mtime": 1794077572.153398,
+    "seen": 1794079080.0015101,
+    "ast_hash": "419a8c5ad99cadce0703579f11449ef9",
+    "semantic_hash": "419a8c5ad99cadce0703579f11449ef9"
+  },
+  "sigaa_mcp/session.py": {
+    "mtime": 1794077779.121045,
+    "seen": 1794079080.001512,
+    "ast_hash": "b374e85c423c946028ee5f09caa77f6f",
+    "semantic_hash": "b374e85c423c946028ee5f09caa77f6f"
+  },
+  "sigaa_mcp/tools.py": {
+    "mtime": 1794078354.9571576,
+    "seen": 1794079080.001514,
+    "ast_hash": "31bde2421183ea4f9d00de7b2c30b996",
+    "semantic_hash": "31bde2421183ea4f9d00de7b2c30b996"
+  },
+  "sigaa_mcp/ui_components.py": {
+    "mtime": 1794078076.3651738,
+    "seen": 1794079080.0015163,
+    "ast_hash": "bda438dd7a6f001047c4fce252834720",
+    "semantic_hash": "bda438dd7a6f001047c4fce252834720"
+  },
+  "sigaa_mcp/web_login.py": {
+    "mtime": 1794078262.6105146,
+    "seen": 1794079080.001518,
+    "ast_hash": "0d248420c5947565b0111d64ac963839",
+    "semantic_hash": "0d248420c5947565b0111d64ac963839"
+  },
+  "tests/__init__.py": {
+    "mtime": 1794078775.790212,
+    "seen": 1794079080.00152,
+    "ast_hash": "fc8eda877b5ff03aebe2fb21b2e3112a",
+    "semantic_hash": "fc8eda877b5ff03aebe2fb21b2e3112a"
+  },
+  "tests/test_mcp_server.py": {
+    "mtime": 1794078779.0817199,
+    "seen": 1794079080.0015216,
+    "ast_hash": "6292b20110477fd18fdf9335f71f9d71",
+    "semantic_hash": "6292b20110477fd18fdf9335f71f9d71"
+  },
+  "tests/test_parsers.py": {
+    "mtime": 1794078777.3997316,
+    "seen": 1794079080.001524,
+    "ast_hash": "3bdcadc5bb48ec3313e5ec19308bd8f0",
+    "semantic_hash": "3bdcadc5bb48ec3313e5ec19308bd8f0"
+  },
+  "tests/test_web_login.py": {
+    "mtime": 1794078780.2766275,
+    "seen": 1794079080.0015259,
+    "ast_hash": "097969bf7ac3ddfa318a04fab69138ef",
+    "semantic_hash": "097969bf7ac3ddfa318a04fab69138ef"
   }
 }
