@@ -1,0 +1,62 @@
+{
+  "catalogo_docker_sigaa_ufpa.yaml": {
+    "mtime": 1759452187.2146437,
+    "seen": 1794070690.5184016,
+    "ast_hash": "f19b18b2ef2369c0a24a71e74324689a",
+    "semantic_hash": ""
+  },
+  "docker-compose.yml": {
+    "mtime": 1761572455.7173917,
+    "seen": 1794070690.5184078,
+    "ast_hash": "318b54c95a74c9647316338886221582",
+    "semantic_hash": ""
+  },
+  "drive_service.py": {
+    "mtime": 1760810611.9336221,
+    "seen": 1794070690.5184104,
+    "ast_hash": "0e7a05ec62907f2c3ef89647db853d71",
+    "semantic_hash": ""
+  },
+  "fastmcp.json": {
+    "mtime": 1760746865.7151604,
+    "seen": 1794070690.5184119,
+    "ast_hash": "36de6547f28b8d9ca21dd180853988d3",
+    "semantic_hash": ""
+  },
+  "pyproject.toml": {
+    "mtime": 1760811091.7587636,
+    "seen": 1794070690.518413,
+    "ast_hash": "e6b97c96d2aad7af33115f24a1b30783",
+    "semantic_hash": ""
+  },
+  "server.py": {
+    "mtime": 1760895194.471679,
+    "seen": 1794070690.518414,
+    "ast_hash": "7a00f548acc0f6e096acaf8cd3698ce4",
+    "semantic_hash": ""
+  },
+  "README.es.md": {
+    "mtime": 1794070605.8578844,
+    "seen": 1794070690.5184152,
+    "ast_hash": "efdf796bf76e4be79f769738d217323e",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1794070605.8578844,
+    "seen": 1794070690.5184162,
+    "ast_hash": "1206249a07c0134f975c89fdfbed2b93",
+    "semantic_hash": ""
+  },
+  "README.pt-BR.md": {
+    "mtime": 1794070605.8578844,
+    "seen": 1794070690.5184171,
+    "ast_hash": "51e85b22496c5ddd8d51fbe123b1fbc3",
+    "semantic_hash": ""
+  },
+  "assets/demo-preview.svg": {
+    "mtime": 1794070559.526059,
+    "seen": 1794070690.518418,
+    "ast_hash": "62a68366196ac4abacb620c67b31287f",
+    "semantic_hash": ""
+  }
+}
