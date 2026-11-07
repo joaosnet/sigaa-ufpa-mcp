@@ -178,3 +178,7 @@ src/bot_telegram/*.txt
 src/logs/browser/
 client_secrets.json
 token.json
+# Graphify internal cache and metadata
+graphify-out/cache/
+graphify-out/.graphify_*
+!graphify-out/graph.html

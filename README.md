@@ -1,229 +1,137 @@
-# Servidor MCP para SIGAA UFPA com Browser-Use
+# SIGAA UFPA MCP Server
 
-Este projeto implementa um servidor MCP (Model Context Protocol) específico para automatizar o acesso ao SIGAA da UFPA usando browser-use com agents para autenticação automática.
+> Model Context Protocol (MCP) server for automating academic student workflows on the UFPA SIGAA portal using `browser-use`, Chromium in Xvfb, and Google Drive.
 
-## 📋 Estrutura do Projeto
+[English](README.md) ? [Portugu?s](README.pt-BR.md) ? [Espa?ol](README.es.md)
 
-```
-sigaa-ufpa-mcp/
-├── Dockerfile
-├── docker-compose.yml
-├── pyproject.toml
-├── uv.lock
-├── .env.exemple
-├── server.py
-├── mcp.json
-├── fastmcp.json
-└── data/
-    └── downloads/
-```
+---
 
-## 🚀 Como Usar com Docker
+## Overview
 
-Este projeto é otimizado para execução com Docker, oferecendo dois modos principais: `http` (serviço web) e `stdio` (para clientes MCP).
+![SIGAA UFPA Automation Terminal Preview](assets/demo-preview.svg)
+*Drop a screen recording at `assets/demo.gif` to replace this preview.*
 
-### 1. Pré-requisitos
+`sigaa-ufpa-mcp` exposes high-level MCP tools to AI clients (such as Claude Desktop, Cursor, or LibreChat) to execute real-time operations on the Federal University of Par? (UFPA) SIGAA system. An isolated Docker container runs Chromium inside a virtual Xvfb display, controlled by `browser-use` and Gemini.
 
-- Docker e Docker Compose instalados.
-- Credenciais de acesso ao SIGAA e uma chave de API para o Google Gemini.
+---
 
-### 2. Configuração
+## System Architecture & Knowledge Graph
 
-1.  **Clone o repositório:**
-    ```bash
-    git clone https://github.com/seu-usuario/sigaa-ufpa-mcp.git
-    cd sigaa-ufpa-mcp
-    ```
+The codebase structure and module relationships are indexed with **Graphify** (154 nodes, 192 edges, 10 communities).
 
-2. **Configure as Variáveis de Ambiente:**
-    Copie o arquivo de exemplo e preencha com suas credenciais.
-    ```bash
-    cp .env.exemple .env
-    nano .env
-    ```
-    Preencha `SIGAA_USERNAME`, `SIGAA_PASSWORD` e `GOOGLE_API_KEY`.
+![Architecture Knowledge Graph](graphify-out/graph.svg)
 
-### 3. Construindo a Imagem Docker
+* Detailed architecture articles, call flows, and God Node breakdowns are available in the [Graphify Knowledge Wiki](graphify-out/wiki/index.md).
+* Open [`graphify-out/graph.html`](graphify-out/graph.html) directly in any browser for interactive cluster filtering and dependency inspection.
 
-Antes de executar o contêiner, construa a imagem com uma tag específica. Isso só precisa ser feito uma vez ou sempre que o `Dockerfile` for alterado.
+---
+
+## Exposed MCP Tools
+
+| Tool | Parameters | Return | Description |
+| :--- | :--- | :--- | :--- |
+| `baixar_historico_escolar` | None | `dict` | Downloads the student's full academic transcript in PDF format. |
+| `listar_disciplinas_ofertadas` | `curso: str`, `turno: str = ""` | `dict` | Scrapes all courses offered for the current academic term by course name and shift. |
+| `exportar_horarios_csv` | None | `dict` | Extracts active class schedules and student enrollment records into CSV. |
+| `listar_avisos_turmas` | None | `dict` | Gathers announcements and notices posted across all enrolled classes. |
+| `trocar_imagem_perfil` | `drive_file_id: str`, `descricao: str = ""` | `dict` | Fetches a photo from Google Drive, validates identity (DOB, CPF), and updates SIGAA profile photo. |
+| `reiniciar_sessao` | None | `dict` | Restarts the browser instance and re-authenticates the SIGAA session (HTTP mode). |
+
+### Resources (`resource://`)
+* `resource://status-init`: Reports startup status, session messages, and whether authentication succeeded.
+* `resource://drive-images`: Lists all image metadata found in the configured Google Drive folder.
+
+---
+
+## Deployment Modes
+
+### 1. Web Service Mode (Docker Compose)
+
+Runs the MCP server as a background service with live graphical monitoring via noVNC and VNC.
 
 ```bash
-docker build -t sigaa-ufpa-mcp .
+# Clone the repository
+git clone https://github.com/joaosnet/sigaa-ufpa-mcp.git
+cd sigaa-ufpa-mcp
+
+# Copy environment template and fill in credentials
+cp .env.exemple .env
+
+# Start services
+docker compose up -d
 ```
 
-### 4. Modos de Execução
+#### Network Ports
+* **8003**: FastMCP HTTP Stream (`http://localhost:8003/mcp`)
+* **6080**: noVNC Browser Interface (`http://localhost:6080/vnc.html?autoconnect=1&resize=scale&password=browser-use`)
+* **5900**: Native VNC RFB Server (Password: `browser-use`)
 
-#### a) Modo Serviço Web (via Docker Compose)
-
+#### MCP Client Configuration (HTTP)
 ```json
 {
-  "mcp_servers": {
+  "mcpServers": {
     "sigaa-ufpa": {
-      "name": "SIGAA UFPA MCP Server (Docker Compose)",
       "type": "streamable-http",
-      "url": "http://localhost:8003/mcp",
-      "disabled": false,
-      "alwaysAllow": [
-        "reiniciar_sessao",
-        "baixar_historico_escolar",
-        "exportar_horarios_csv",
-        "listar_avisos_turmas",
-        "listar_disciplinas_ofertadas"
-      ],
-      "env": {
-        "GOOGLE_API_KEY": "COLE_SUA_API_KEY_DO_GEMINI_AQUI",
-        "SIGAA_USERNAME": "COLE_SEU_USUARIO_SIGAA_AQUI",
-        "SIGAA_PASSWORD": "COLE_SUA_SENHA_SIGAA_AQUI",
-        "MCP_TRANSPORT": "stdio",
-        "LOG_LEVEL": "INFO",
-        "CHROME_HEADLESS": "true"
-      },
-      "timeout": 1800
+      "url": "http://localhost:8003/mcp"
     }
   }
 }
 ```
 
-Ideal para manter o servidor rodando como um serviço de fundo, com reinicialização automática e acesso via VNC.
+---
 
-```bash
-docker-compose up -d
-```
+### 2. Standard I/O Mode (Claude Desktop / CLI)
 
-- O servidor estará acessível na porta `8003`.
-- Você pode monitorar os logs com `docker-compose logs -f`.
-- A interface gráfica pode ser acessada via VNC no endereço `localhost:5900` (senha padrão: `browser-use`).
-- A interface gráfica também pode ser acessada via noVNC no navegador em `http://localhost:6080/vnc.html?autoconnect=1&resize=scale&password=browser-use`.
-
-### Acessando o Servidor VNC
-
-Para visualizar a interface gráfica do navegador automatizado:
-
-1. **Acesso via noVNC (navegador):**
-   - Acesse http://localhost:6080/vnc.html?autoconnect=1&resize=scale&password=browser-use
-
-2. **Acesso via cliente VNC:**
-   - Instale um cliente VNC em seu computador (como TigerVNC Viewer, RealVNC, UltraVNC, ou qualquer outro cliente VNC de sua preferência)
-   - Conecte-se ao servidor VNC usando:
-     - Endereço: `localhost:5900` (já que a porta 5900 do contêiner está mapeada para a porta 5900 do host)
-     - Senha: `browser-use` (padrão definido no Dockerfile)
-
-3. **Visualize as automações** em execução no navegador que está sendo controlado pelo sistema de automação do SIGAA.
-
-O acesso VNC/noVNC é especialmente útil para:
-- Monitorar visualmente as automações em execução
-- Depurar problemas de navegação
-- Verificar visualmente se as tarefas estão sendo executadas corretamente
-
-#### b) Modo Cliente MCP (via `docker run`)
-
-Este modo é para integrar o servidor a um cliente MCP, como o Claude Desktop, que se comunica via `stdio`.
-
-Adicione a seguinte configuração ao seu cliente MCP. Este método é o mais recomendado, pois centraliza todas as configurações no cliente e não depende de um arquivo `.env`.
+Run directly via `docker run` over `stdio`:
 
 ```json
 {
-  "mcp_servers": {
-      "sigaa-ufpa-docker": {
-      "name": "SIGAA UFPA MCP Server",
-      "type": "stdio",
+  "mcpServers": {
+    "sigaa-ufpa": {
       "command": "docker",
       "args": [
         "run",
         "--rm",
         "-i",
-        "-e", "GOOGLE_API_KEY=COLE_SUA_API_KEY_DO_GEMINI_AQUI",
-        "-e", "SIGAA_USERNAME=COLE_SEU_USUARIO_SIGAA_AQUI",
-        "-e", "SIGAA_PASSWORD=COLE_SUA_SENHA_SIGAA_AQUI",
+        "-e", "GOOGLE_API_KEY=YOUR_GEMINI_KEY",
+        "-e", "SIGAA_USERNAME=YOUR_SIGAA_LOGIN",
+        "-e", "SIGAA_PASSWORD=YOUR_SIGAA_PASSWORD",
         "-e", "MCP_TRANSPORT=stdio",
-        "-e", "LOG_LEVEL=INFO",
-        "-e", "CHROME_HEADLESS=false",
-        "-p",
-        "8003:8003",
-        "-p",
-        "5900:5900",
-        "-p",
-        "6080:6080",
+        "-e", "CHROME_HEADLESS=true",
         "joaosnet/sigaa-ufpa-mcp"
-      ],
-      "alwaysAllow": [
-        "reiniciar_sessao",
-        "baixar_historico_escolar",
-        "exportar_horarios_csv",
-        "listar_avisos_turmas",
-        "listar_disciplinas_ofertadas"
-      ],
-      "timeout": 1800,
-      "disabled": false
+      ]
     }
   }
 }
 ```
 
-**Explicação da configuração:**
+---
 
-- `"command": "docker"` e `"args": [...]`: Executa o contêiner a partir da imagem `sigaa-ufpa-mcp` que você construiu.
-  - `--rm`: Remove o contêiner automaticamente após o uso.
-  - `-i`: Mantém o `STDIN` aberto, essencial para a comunicação `stdio`.
-- `"env"`: Passa todas as credenciais e chaves de API diretamente para o ambiente do contêiner. O servidor lerá essas variáveis para funcionar.
-- `"type": "stdio"`: Informa ao cliente para se comunicar via entrada/saída padrão. O servidor no contêiner já inicia neste modo por padrão.
+## Environment Variables
 
-### 3. Exemplo de Uso
+| Variable | Required | Default | Purpose |
+| :--- | :---: | :---: | :--- |
+| `GOOGLE_API_KEY` | Yes | ? | Google Gemini API key used by `browser-use` for visual element extraction. |
+| `SIGAA_USERNAME` | Yes | ? | UFPA SIGAA student institutional username. |
+| `SIGAA_PASSWORD` | Yes | ? | UFPA SIGAA student password. |
+| `MCP_TRANSPORT` | No | `stdio` | Transport protocol: `stdio` (CLI clients) or `http` (network daemon). |
+| `CHROME_HEADLESS` | No | `true` | Headless execution flag for Chromium inside the container. |
+| `DRIVE_FOLDER_ID` | No | ? | Google Drive folder ID containing student photos for profile updates. |
+| `DRIVE_CLIENT_SECRETS_PATH` | No | `client_secrets.json` | Path to OAuth 2.0 Client credentials JSON file. |
+| `DRIVE_TOKEN_PATH` | No | `token.json` | Path to persisted OAuth 2.0 token cache. |
 
-Após configurar, você pode usar no Claude:
+---
 
-```
-"Faça login no SIGAA e me traga minhas notas do semestre atual"
-
-"Baixe meu histórico acadêmico em PDF"
-
-"Verifique se tenho alguma notificação no SIGAA"
-
-"Extraia meu horário de aulas desta semana"
-```
-
-## 📋 Ferramentas Disponíveis
-
-1. **reiniciar_sessao** - Reinicia a sessão do navegador e realiza o login novamente.
-2. **baixar_historico_escolar** - Baixa o histórico escolar completo do aluno em PDF e retorna o caminho do arquivo salvo.
-3. **listar_disciplinas_ofertadas** - Lista todas as disciplinas ofertadas no semestre atual para o curso e turno informados.
-4. **exportar_horarios_csv** - Exporta todos os horários de aula do aluno no semestre atual em formato CSV.
-5. **listar_avisos_turmas** - Lista todos os avisos/comunicados recentes das turmas em que o aluno está matriculado.
-
-## 🔒 Segurança
-
-- **Credenciais**: Armazenadas apenas em variáveis de ambiente
-- **Browser Isolado**: Executa em container Docker separado
-- **Logs**: Não registram senhas ou dados sensíveis
-- **Cleanup**: Sessões são limpas automaticamente
-
-## 🛠️ Desenvolvimento
-
-Para desenvolvimento local:
+## Local Development
 
 ```bash
-# Instalar dependências com uv
+# Install dependencies with uv
 uv sync --frozen
 
-# Executar em modo desenvolvimento
+# Start server in development mode
 uv run server.py
-
-# Logs em tempo real
-tail -f logs/server.log
 ```
 
-## ⚠️ Importante
-
-- Este servidor é específico para o SIGAA da UFPA
-- Requer credenciais válidas da universidade
-- Respeite os termos de uso do SIGAA
-- Use apenas para automação pessoal legítima
-
-## 📞 Suporte
-
-Para problemas ou melhorias:
-
-1. Verifique os logs em `/app/logs/server.log`
-2. Confirme que as credenciais estão corretas
-3. Teste a conectividade com o SIGAA
-4. Verifique se a `GOOGLE_API_KEY` está funcionando
+### Verification & Logs
+* Logs write to stdout through Loguru and standard handlers.
+* Open `http://localhost:6080` while running with Docker Compose to watch the browser automate the login sequence in real time.
