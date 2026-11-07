@@ -58,3 +58,15 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 .env.backup
+
+# Prevent baking local credentials or artifacts into Docker image
+client_secrets.json
+token.json
+storage_state.json
+.sigaa_state/
+screenshots/
+tests/
+docs/
+assets/
+graphify-out/cache/
+graphify-out/.graphify_*

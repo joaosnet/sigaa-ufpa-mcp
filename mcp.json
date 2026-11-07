@@ -1,13 +1,11 @@
 {
-  "SIGAA UFPA MCP Server": {
-    "command": "uv",
-    "args": [
-      "run",
-      "--with",
-      "fastmcp",
-      "fastmcp",
-      "run",
-      "C:\\Users\\joaod\\Documents\\GitHub\\sigaa-ufpa-mcp\\server.py:mcp"
-    ]
+  "mcpServers": {
+    "sigaa-ufpa": {
+      "command": "uv",
+      "args": [
+        "run",
+        "server.py"
+      ]
+    }
   }
 }
