@@ -1,68 +1,90 @@
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 
-# Set environment variables
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    ANONYMIZED_TELEMETRY=false \
-    PATH="/root/.local/bin:/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:$PATH" \
     DISPLAY=:99 \
-    CHROME_BIN=/usr/bin/chromium \
-    CHROMIUM_FLAGS="--no-sandbox --disable-dev-shm-usage"
+    MCP_TRANSPORT=http \
+    MCP_SERVER_HOST=0.0.0.0 \
+    MCP_SERVER_PORT=8003 \
+    CHROME_HEADLESS=false \
+    VNC_PASSWORD=sigaa \
+    DOWNLOAD_PATH=/app/downloads \
+    STORAGE_STATE_PATH=/app/.sigaa_state/storage_state.json
 
-# Install system dependencies (minimal X11 + Chromium + noVNC)
 RUN apt-get update -y && \
     apt-get install --no-install-recommends -y \
-    clang \
-    git \
-    xvfb \
-    x11vnc \
-    fluxbox \
-    dbus-x11 \
-    fonts-freefont-ttf \
-    fonts-ipafont-gothic \
-    fonts-wqy-zenhei \
-    fonts-thai-tlwg \
-    fonts-kacst \
-    fonts-symbola \
-    fonts-noto-color-emoji \
-    libnss3 \
-    libatk-bridge2.0-0 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    curl \
-    nodejs \
-    npm \
-    websockify \
-    novnc && \
+        xvfb \
+        x11vnc \
+        fluxbox \
+        dbus-x11 \
+        websockify \
+        novnc \
+        curl \
+        ca-certificates \
+        fonts-liberation \
+        fonts-freefont-ttf \
+        fonts-noto-color-emoji && \
+    ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install proxy-login-automator
-RUN npm install -g npm@latest && \
-    npm i -g proxy-login-automator || echo "proxy-login-automator installation failed, continuing..."
-
-# Set up working directory and copy project files
 WORKDIR /app
+
+# Install Python dependencies & Playwright Chromium with OS libraries (cached layers)
 COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
 
-# Install Python dependencies
-RUN uv sync --frozen
+RUN printf 'Acquire::Retries "8";\nAcquire::http::Pipeline-Depth "0";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' > /etc/apt/apt.conf.d/80-retries && \
+    sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources && \
+    uv run playwright install --with-deps chromium && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy the rest of the application
+# Copy application code (secrets excluded via .dockerignore)
 COPY . .
+RUN uv sync --frozen --no-dev && \
+    mkdir -p /app/downloads /app/.sigaa_state
 
-# Install Playwright
-RUN uvx playwright install chromium --with-deps --no-shell
+RUN cat <<'EOF' > /app/boot.sh && sed -i 's/\r$//' /app/boot.sh && chmod +x /app/boot.sh
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Set up boot script with Xvfb + x11vnc + noVNC
-RUN printf '#!/bin/bash\nset -e\n\n# Cleanup function to stop all services\ncleanup() {\n  echo "Shutting down services..." >&2\n  pkill -f websockify || true\n  pkill -f x11vnc || true\n  pkill -f Xvfb || true\n  pkill -f fluxbox || true\n  pkill -f proxy-login-automator || true\n  exit 0\n}\n\ntrap cleanup SIGTERM SIGINT EXIT\n\n# Start Xvfb (Virtual X Server)\nXvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset >&2 &\nsleep 2\n\n# Start lightweight window manager\nfluxbox -display :99 >&2 &\nsleep 1\n\n# Start x11vnc (no password for simplicity, adjust if needed)\nx11vnc -display :99 -forever -shared -rfbport 5900 -nopw >&2 &\nsleep 2\n\n# Start proxy-login-automator\nproxy-login-automator 2>/dev/null || true &\n\n# Start noVNC websocket proxy\nexport MCP_TRANSPORT=${MCP_TRANSPORT:-http}\nwebsockify -D --web /usr/share/novnc 6080 localhost:5900 >&2\n\n# Run Python server in foreground (main process)\npython server.py\n\n# If Python exits, cleanup will be called automatically' > /app/boot.sh && \
-    chmod +x /app/boot.sh
+cleanup() {
+  echo "[boot] Encerrando serviços auxiliares X11/noVNC..." >&2
+  pkill -f websockify 2>/dev/null || true
+  pkill -f x11vnc 2>/dev/null || true
+  pkill -f fluxbox 2>/dev/null || true
+  pkill -f Xvfb 2>/dev/null || true
+}
+trap cleanup SIGTERM SIGINT EXIT
 
-EXPOSE 8000 6080
+rm -f /tmp/.X99-lock /tmp/.X11-unix/X99 2>/dev/null || true
 
-ENTRYPOINT ["/bin/bash", "/app/boot.sh"]
+Xvfb :99 -screen 0 1366x860x24 -ac +extension GLX +render -noreset >&2 &
+sleep 1
+
+fluxbox -display :99 >&2 &
+sleep 1
+
+if [ -n "${VNC_PASSWORD:-}" ]; then
+  mkdir -p /root/.vnc
+  x11vnc -storepasswd "${VNC_PASSWORD}" /root/.vnc/passwd >&2
+  x11vnc -display :99 -forever -shared -rfbport 5900 -rfbauth /root/.vnc/passwd >&2 &
+else
+  x11vnc -display :99 -forever -shared -rfbport 5900 -nopw >&2 &
+fi
+sleep 1
+
+websockify -D --web /usr/share/novnc 6080 localhost:5900 >&2
+
+exec /app/.venv/bin/python /app/server.py
+EOF
+
+EXPOSE 8003 6080 5900
+
+HEALTHCHECK --interval=20s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -fsS http://localhost:8003/health || exit 1
+
+ENTRYPOINT ["/app/boot.sh"]

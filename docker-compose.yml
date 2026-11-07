@@ -1,53 +1,43 @@
 services:
-  sigaa-mcp-server:
-    build: .
+  sigaa-ufpa-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: sigaa-ufpa-mcp
+    shm_size: "1gb"
     ports:
-      - "8003:8003"
-      - "6080:6080"  # noVNC port for web access
+      - "8003:8003"   # FastMCP HTTP (/mcp) + Portal de Login Visual (/login) + Health (/health)
+      - "6080:6080"   # noVNC ao vivo no navegador (http://localhost:6080)
+      - "5900:5900"   # VNC direto opcional
     environment:
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - SIGAA_USERNAME=${SIGAA_USERNAME}
-      - SIGAA_PASSWORD=${SIGAA_PASSWORD}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - MCP_SERVER_HOST=0.0.0
+      - SIGAA_USERNAME=${SIGAA_USERNAME:-}
+      - SIGAA_PASSWORD=${SIGAA_PASSWORD:-}
+      - SIGAA_MATRICULA=${SIGAA_MATRICULA:-}
+      - MCP_TRANSPORT=${MCP_TRANSPORT:-http}
+      - MCP_SERVER_HOST=0.0.0.0
       - MCP_SERVER_PORT=8003
-      - LOG_LEVEL=INFO
-      - MCP_TRANSPORT=http
+      - CHROME_HEADLESS=${DOCKER_CHROME_HEADLESS:-false}
+      - BROWSER_TIMEOUT_MS=${BROWSER_TIMEOUT_MS:-35000}
+      - VNC_PASSWORD=${VNC_PASSWORD:-sigaa}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DOWNLOAD_PATH=/app/downloads
+      - STORAGE_STATE_PATH=/app/.sigaa_state/storage_state.json
+      - DRIVE_FOLDER_ID=${DRIVE_FOLDER_ID:-}
+      - DRIVE_CLIENT_SECRETS_PATH=/app/client_secrets.json
+      - DRIVE_TOKEN_PATH=/app/token.json
     volumes:
-      - ./downloads:/root/Downloads  # Downloads do navegador
-      - ./screenshots:/app/screenshots  # Screenshots capturados
-    restart: always
-    develop:  # Configuração do Docker Compose Watch
-      watch:
-        - path: .
-          action: sync
-          target: /app
-          ignore:
-            - .git/
-            - .venv/
-            - __pycache__/
-            - "*.pyc"
-            - "*.pyo"
-            - "*.pyd"
-            - ".pytest_cache/"
-            - ".mypy_cache/"
-            - "logs/"
-            - "data/"
-            - ".vscode/"
-            - ".idea/"
-            - "node_modules/"
-            - ".dockerignore"
-            - "docker-compose.yml"
-            - ".env*"
+      - ./downloads:/app/downloads
+      - ./.sigaa_state:/app/.sigaa_state
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8003/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
     networks:
       - sigaa-network
-
 
 networks:
   sigaa-network:
     driver: bridge
-
-volumes:
-  sigaa-data:
-    driver: local
