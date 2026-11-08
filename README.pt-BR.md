@@ -33,15 +33,29 @@ docker compose up -d --build
 
 ### Cadastrar no Cliente MCP (`mcp_config.json`)
 
+**Sob demanda (inicia apenas quando solicitado via Docker):**
 ```json
 {
   "mcpServers": {
     "sigaa-ufpa": {
-      "url": "http://localhost:8003/mcp"
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "--entrypoint", "/app/.venv/bin/python",
+        "--env-file", "/caminho/absoluto/para/sigaa-ufpa-mcp/.env",
+        "-e", "MCP_TRANSPORT=stdio",
+        "-e", "CHROME_HEADLESS=true",
+        "-v", "/caminho/absoluto/para/sigaa-ufpa-mcp/downloads:/app/downloads",
+        "-v", "/caminho/absoluto/para/sigaa-ufpa-mcp/.sigaa_state:/app/.sigaa_state",
+        "sigaa-ufpa-mcp:latest",
+        "/app/server.py"
+      ]
     }
   }
 }
 ```
+
+*Ou utilize `"url": "http://localhost:8003/mcp"` caso execute `docker compose up -d` de forma contínua.*
 
 ---
 

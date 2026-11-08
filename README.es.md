@@ -33,15 +33,29 @@ docker compose up -d --build
 
 ### Configurar el Cliente MCP (`mcp_config.json`)
 
+**Bajo demanda (inicia solo cuando se solicita vía Docker):**
 ```json
 {
   "mcpServers": {
     "sigaa-ufpa": {
-      "url": "http://localhost:8003/mcp"
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "--entrypoint", "/app/.venv/bin/python",
+        "--env-file", "/ruta/absoluta/a/sigaa-ufpa-mcp/.env",
+        "-e", "MCP_TRANSPORT=stdio",
+        "-e", "CHROME_HEADLESS=true",
+        "-v", "/ruta/absoluta/a/sigaa-ufpa-mcp/downloads:/app/downloads",
+        "-v", "/ruta/absoluta/a/sigaa-ufpa-mcp/.sigaa_state:/app/.sigaa_state",
+        "sigaa-ufpa-mcp:latest",
+        "/app/server.py"
+      ]
     }
   }
 }
 ```
+
+*O use `"url": "http://localhost:8003/mcp"` si ejecuta `docker compose up -d` de manera continua.*
 
 ---
 
