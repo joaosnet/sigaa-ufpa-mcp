@@ -18,8 +18,6 @@ from sigaa_mcp.parsers import (
     detect_schedule_conflicts,
     normalize_text,
     parse_atestado_html,
-    parse_ava_atividades_html,
-    parse_ava_noticias_html,
     parse_portal_discente,
     parse_turmas_ofertadas_html,
 )
@@ -127,10 +125,23 @@ async def exportar_horarios_csv_flow(
 async def listar_avisos_turmas_flow(
     disciplina_filtro: Optional[str] = None,
     limite_por_turma: int = 5,
+    semestre: Optional[str] = None,
+    ler_texto: bool = True,
     ctx: Any = None,
     session: Optional[SigaaSessionManager] = None,
 ) -> list[AvisoTurma]:
-    """Gather recent class notices from Portal do Discente and each enrolled Turma Virtual (AVA)."""
+    """Gather class notices from the Portal do Discente and each Turma Virtual (AVA).
+
+    Turmas come from 'Todas as Turmas Virtuais' (most recent semester by default), not from the
+    portal card, which is empty outside the enrollment window.
+    """
+    from sigaa_mcp.flows.turma_virtual import (
+        carregar_todas_turmas_unlocked,
+        consolidar_avisos,
+        ler_turma_unlocked,
+        selecionar_turmas,
+    )
+
     mgr = session or session_manager
     async with mgr.lock:
         await _report(ctx, 1, 4, "Coletando últimas atualizações do Portal do Discente...")
@@ -140,71 +151,47 @@ async def listar_avisos_turmas_flow(
             wait_until="domcontentloaded",
             timeout=settings.browser_timeout_ms,
         )
-        portal_html = await page.content()
-        perfil, turmas, avisos_portal, _ = parse_portal_discente(portal_html, base_url=settings.base_url)
+        perfil, _, avisos_portal, _ = parse_portal_discente(await page.content(), base_url=settings.base_url)
         mgr.perfil_atual = perfil
 
-        filtro_norm = normalize_text(disciplina_filtro) if disciplina_filtro else ""
-        avisos: list[AvisoTurma] = [
-            a for a in avisos_portal if not filtro_norm or filtro_norm in normalize_text(a.disciplina)
-        ]
-        seen = {(normalize_text(a.disciplina), normalize_text(a.titulo)) for a in avisos}
-
-        total_turmas = len(turmas)
+        turmas = selecionar_turmas(await carregar_todas_turmas_unlocked(page), disciplina_filtro, semestre)
+        conteudos = []
         for idx, turma in enumerate(turmas):
-            if filtro_norm and filtro_norm not in normalize_text(turma.disciplina) and filtro_norm not in normalize_text(turma.codigo):
-                continue
-
-            await _report(
-                ctx,
-                2 + (idx / max(total_turmas, 1)),
-                4,
-                f"Consultando notícias da turma {turma.disciplina}...",
+            await _report(ctx, 2 + idx / max(len(turmas), 1), 4, f"Consultando notícias da turma {turma.disciplina}...")
+            conteudos.append(
+                await ler_turma_unlocked(
+                    page, turma, ["noticias"], limite_noticias=max(1, limite_por_turma), ler_texto_noticias=ler_texto
+                )
             )
-            await page.goto(
-                f"{settings.base_url}/sigaa/verPortalDiscente.do",
-                wait_until="domcontentloaded",
-                timeout=settings.browser_timeout_ms,
-            )
-            links = page.locator("#turmas-portal td.descricao a")
-            if idx >= await links.count():
-                continue
-
-            try:
-                async with page.expect_navigation(
-                    wait_until="domcontentloaded", timeout=settings.browser_timeout_ms
-                ):
-                    await links.nth(idx).click()
-
-                if await _click_ava_menu_item(page, "notícias") or await _click_ava_menu_item(page, "noticias"):
-                    ava_avisos = parse_ava_noticias_html(
-                        await page.content(),
-                        disciplina=turma.disciplina,
-                        semestre=turma.semestre or perfil.semestre_atual,
-                    )
-                    for av in ava_avisos[: max(1, limite_por_turma)]:
-                        key = (normalize_text(av.disciplina), normalize_text(av.titulo))
-                        if key not in seen:
-                            seen.add(key)
-                            avisos.append(av)
-            except Exception as exc:
-                logger.warning(f"Não foi possível ler notícias da turma '{turma.disciplina}': {exc}")
 
         await page.goto(
             f"{settings.base_url}/sigaa/verPortalDiscente.do",
             wait_until="domcontentloaded",
             timeout=settings.browser_timeout_ms,
         )
+        avisos = consolidar_avisos(avisos_portal, conteudos, disciplina_filtro or "")
         await _report(ctx, 4, 4, f"{len(avisos)} avisos/notícias consolidados.")
         return avisos
 
 
 async def listar_atividades_pendentes_flow(
     incluir_concluidas: bool = False,
+    semestre: Optional[str] = None,
+    disciplina_filtro: Optional[str] = None,
     ctx: Any = None,
     session: Optional[SigaaSessionManager] = None,
 ) -> list[AtividadePendente]:
-    """Scan Portal do Discente and enrolled AVA rooms for tasks, quizzes, and scheduled exams."""
+    """Scan the Portal do Discente and AVA rooms for tasks, quizzes, and scheduled exams.
+
+    Turmas come from 'Todas as Turmas Virtuais' (most recent semester by default).
+    """
+    from sigaa_mcp.flows.turma_virtual import (
+        carregar_todas_turmas_unlocked,
+        consolidar_atividades,
+        ler_turma_unlocked,
+        selecionar_turmas,
+    )
+
     mgr = session or session_manager
     async with mgr.lock:
         await _report(ctx, 1, 4, "Verificando painel 'Minhas Atividades' no Portal do Discente...")
@@ -214,60 +201,26 @@ async def listar_atividades_pendentes_flow(
             wait_until="domcontentloaded",
             timeout=settings.browser_timeout_ms,
         )
-        portal_html = await page.content()
-        perfil, turmas, _, atividades_portal = parse_portal_discente(portal_html, base_url=settings.base_url)
+        perfil, _, _, atividades_portal = parse_portal_discente(await page.content(), base_url=settings.base_url)
         mgr.perfil_atual = perfil
 
-        todas: list[AtividadePendente] = list(atividades_portal)
-        seen = {(normalize_text(a.disciplina), normalize_text(a.titulo)) for a in todas}
-
+        turmas = selecionar_turmas(await carregar_todas_turmas_unlocked(page), disciplina_filtro, semestre)
+        conteudos = []
         for idx, turma in enumerate(turmas):
             await _report(
-                ctx,
-                2 + (idx / max(len(turmas), 1)),
-                4,
+                ctx, 2 + idx / max(len(turmas), 1), 4,
                 f"Inspecionando tarefas, questionários e avaliações em {turma.disciplina}...",
             )
-            await page.goto(
-                f"{settings.base_url}/sigaa/verPortalDiscente.do",
-                wait_until="domcontentloaded",
-                timeout=settings.browser_timeout_ms,
-            )
-            links = page.locator("#turmas-portal td.descricao a")
-            if idx >= await links.count():
-                continue
-
-            try:
-                async with page.expect_navigation(
-                    wait_until="domcontentloaded", timeout=settings.browser_timeout_ms
-                ):
-                    await links.nth(idx).click()
-
-                for kw, label in (
-                    ("tarefas", "Tarefa"),
-                    ("questionários", "Questionário"),
-                    ("avaliações", "Avaliação"),
-                ):
-                    if await _click_ava_menu_item(page, kw):
-                        items = parse_ava_atividades_html(
-                            await page.content(), disciplina=turma.disciplina, tipo=label
-                        )
-                        for it in items:
-                            key = (normalize_text(it.disciplina), normalize_text(it.titulo))
-                            if key not in seen:
-                                seen.add(key)
-                                todas.append(it)
-            except Exception as exc:
-                logger.warning(f"Falha parcial ao inspecionar atividades em '{turma.disciplina}': {exc}")
+            conteudos.append(await ler_turma_unlocked(page, turma, ["tarefas", "questionarios", "avaliacoes"]))
 
         await page.goto(
             f"{settings.base_url}/sigaa/verPortalDiscente.do",
             wait_until="domcontentloaded",
             timeout=settings.browser_timeout_ms,
         )
+        todas = consolidar_atividades(atividades_portal, conteudos)
         if not incluir_concluidas:
             todas = [a for a in todas if not a.concluida]
-
         await _report(ctx, 4, 4, f"{len(todas)} atividades encontradas.")
         return todas
 

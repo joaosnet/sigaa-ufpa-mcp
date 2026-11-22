@@ -30,6 +30,7 @@ from sigaa_mcp.flows.frequencia import (
     consultar_frequencia_turmas_flow,
 )
 from sigaa_mcp.flows.perfil import trocar_imagem_perfil_flow
+from sigaa_mcp.flows.turma_virtual import ler_turmas_virtuais_flow
 from sigaa_mcp.flows.turmas import (
     exportar_horarios_csv_flow,
     listar_atividades_pendentes_flow,
@@ -53,7 +54,7 @@ from sigaa_mcp.ui_components import (
 
 
 def register_tools(mcp: FastMCP) -> None:
-    """Register all 12 model-facing SIGAA UFPA tools on the FastMCP server."""
+    """Register all 13 model-facing SIGAA UFPA tools on the FastMCP server."""
 
     @mcp.tool(
         app=True,
@@ -168,22 +169,35 @@ def register_tools(mcp: FastMCP) -> None:
             idempotentHint=True,
             openWorldHint=True,
         ),
-        timeout=90.0,
+        timeout=180.0,
     )
     async def listar_atividades_pendentes(
         incluir_concluidas: bool = False,
+        semestre: Optional[str] = None,
+        disciplina: Optional[str] = None,
         ctx: Context = CurrentContext(),
     ) -> ToolResult:
-        """Lista tarefas, questionários e avaliações agendadas no Portal do Discente e nas salas virtuais (AVA) das turmas matriculadas."""
+        """Lista tarefas, questionários e avaliações do Portal do Discente e das turmas virtuais (AVA).
+
+        As turmas vêm de 'Todas as Turmas Virtuais' (padrão: semestre mais recente), então funciona mesmo
+        quando o portal mostra "Nenhuma turma neste semestre". `semestre` no formato AAAA.P ou 'todos'.
+        """
         try:
             atividades = await listar_atividades_pendentes_flow(
-                incluir_concluidas=incluir_concluidas, ctx=ctx
+                incluir_concluidas=incluir_concluidas, semestre=semestre, disciplina_filtro=disciplina, ctx=ctx
             )
             payload = {
+                "semestre": semestre or "mais recente",
                 "incluir_concluidas": incluir_concluidas,
                 "total_atividades": len(atividades),
                 "atividades": [a.model_dump(mode="json") for a in atividades],
             }
+            if not atividades:
+                payload["observacao"] = (
+                    "Nenhuma tarefa, questionário ou avaliação cadastrada no painel do portal nem nas seções "
+                    "Tarefas/Questionários/Avaliações das turmas virtuais consultadas. Datas de provas também "
+                    "costumam aparecer em notícias e tópicos de aula: use `ler_turma_virtual` para conferir."
+                )
             return build_dual_tool_result(payload, build_atividades_prefab_app(atividades))
         except AuthenticationRequiredError as exc:
             return build_login_required_tool_result(str(exc))
@@ -223,26 +237,83 @@ def register_tools(mcp: FastMCP) -> None:
             idempotentHint=True,
             openWorldHint=True,
         ),
-        timeout=90.0,
+        timeout=180.0,
     )
     async def listar_avisos_turmas(
         disciplina_filtro: Optional[str] = None,
         limite_por_turma: int = 5,
+        semestre: Optional[str] = None,
+        ler_texto: bool = True,
         ctx: Context = CurrentContext(),
     ) -> ToolResult:
-        """Busca comunicados e notícias recentes publicados pelos professores no Portal do Discente e no AVA de cada turma."""
+        """Busca notícias publicadas pelos professores no Portal do Discente e nas turmas virtuais (AVA), com o texto completo.
+
+        As turmas vêm de 'Todas as Turmas Virtuais' (padrão: semestre mais recente), então funciona mesmo
+        quando o portal mostra "Nenhuma turma neste semestre". `semestre` no formato AAAA.P ou 'todos';
+        `ler_texto=False` traz só título e data (mais rápido).
+        """
         try:
             avisos = await listar_avisos_turmas_flow(
                 disciplina_filtro=disciplina_filtro,
                 limite_por_turma=limite_por_turma,
+                semestre=semestre,
+                ler_texto=ler_texto,
                 ctx=ctx,
             )
             payload = {
+                "semestre": semestre or "mais recente",
                 "disciplina_filtro": disciplina_filtro or "TODAS",
                 "total_avisos": len(avisos),
                 "avisos": [a.model_dump(mode="json") for a in avisos],
             }
             return build_dual_tool_result(payload, build_avisos_prefab_app(avisos))
+        except AuthenticationRequiredError as exc:
+            return build_login_required_tool_result(str(exc))
+
+    @mcp.tool(
+        output_schema=None,
+        tags={"turmas", "ava"},
+        annotations=ToolAnnotations(
+            title="Ler Conteúdo da Turma Virtual",
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=True,
+        ),
+        timeout=240.0,
+    )
+    async def ler_turma_virtual(
+        disciplina: Optional[str] = None,
+        semestre: Optional[str] = None,
+        secoes: Optional[list[str]] = None,
+        limite_noticias: int = 5,
+        ler_texto_noticias: bool = True,
+        ctx: Context = CurrentContext(),
+    ) -> ToolResult:
+        """Lê o conteúdo das turmas virtuais (AVA): tópicos de aula com materiais, notícias (texto completo),
+        arquivos, referências, avaliações, tarefas e questionários — do semestre atual ou de semestres anteriores.
+
+        `disciplina`: nome ou código (ex.: 'Sinais e Sistemas', 'EC01020'); sem ela, lê todas as turmas do semestre.
+        `semestre`: AAAA.P (ex.: '2026.4') ou 'todos'; sem ele, usa o semestre mais recente das turmas encontradas.
+        `secoes`: subconjunto de ["topicos", "noticias", "arquivos", "referencias", "avaliacoes", "tarefas",
+        "questionarios"] (padrão: todas). Também traz a 'Última Notícia' exibida na página da turma.
+        """
+        try:
+            conteudos = await ler_turmas_virtuais_flow(
+                disciplina=disciplina,
+                semestre=semestre,
+                secoes=secoes,
+                limite_noticias=limite_noticias,
+                ler_texto_noticias=ler_texto_noticias,
+                ctx=ctx,
+            )
+            payload = {
+                "disciplina": disciplina or "TODAS",
+                "semestre": semestre or "mais recente",
+                "total_turmas": len(conteudos),
+                "turmas": [c.model_dump(mode="json", exclude_none=True) for c in conteudos],
+            }
+            return ToolResult(content=[TextContent(type="text", text=serialize_summary_json(payload))])
         except AuthenticationRequiredError as exc:
             return build_login_required_tool_result(str(exc))
 

@@ -173,11 +173,65 @@ class AtividadePendente(BaseModel):
     """Tarefa, questionário ou avaliação identificada nas turmas virtuais (AVA)."""
 
     disciplina: str
+    semestre: str = ""
     tipo: str = "Tarefa"
     titulo: str
     prazo: str = ""
     situacao: str = ""
     concluida: bool = False
+
+
+class MaterialTopico(BaseModel):
+    """Material (arquivo, link, vídeo, tarefa...) publicado dentro de um tópico de aula."""
+
+    nome: str
+    tipo: str = ""
+    descricao: str = ""
+
+
+class TopicoAula(BaseModel):
+    """Tópico de aula da página principal da turma virtual."""
+
+    titulo: str
+    periodo: str = ""
+    conteudo: str = ""
+    materiais: list[MaterialTopico] = Field(default_factory=list)
+
+
+class ArquivoTurma(BaseModel):
+    """Arquivo listado em 'Arquivos' da turma virtual."""
+
+    titulo: str
+    descricao: str = ""
+    topico: str = ""
+
+
+class ReferenciaTurma(BaseModel):
+    """Referência bibliográfica/link listado em 'Referências' da turma virtual."""
+
+    nome: str
+    tipo: str = ""
+    url: str = ""
+    topico: str = ""
+
+
+class ConteudoTurmaVirtual(BaseModel):
+    """Conteúdo consolidado de uma turma virtual (AVA) do SIGAA."""
+
+    semestre: str = ""
+    codigo: str = ""
+    disciplina: str = ""
+    turma: str = ""
+    ultima_noticia: Optional[AvisoTurma] = None
+    topicos: list[TopicoAula] = Field(default_factory=list)
+    noticias: list[AvisoTurma] = Field(default_factory=list)
+    arquivos: list[ArquivoTurma] = Field(default_factory=list)
+    referencias: list[ReferenciaTurma] = Field(default_factory=list)
+    avaliacoes: list[AtividadePendente] = Field(default_factory=list)
+    tarefas: list[AtividadePendente] = Field(default_factory=list)
+    questionarios: list[AtividadePendente] = Field(default_factory=list)
+    secoes_lidas: list[str] = Field(default_factory=list)
+    erros: list[str] = Field(default_factory=list)
 
 
 class DisciplinaOfertada(BaseModel):
