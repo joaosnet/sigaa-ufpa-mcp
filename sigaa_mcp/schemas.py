@@ -92,6 +92,15 @@ class NotaDisciplina(BaseModel):
     resultado: str = "-"
     faltas: str = "0"
     situacao: str = "-"
+    fonte_faltas: str = Field(
+        default="boletim",
+        description=(
+            "Origem do campo 'faltas': 'boletim' = total consolidado lançado no relatório 'Minhas Notas' "
+            "(pode estar defasado durante o semestre). A contagem mais atualizada fica no Mapa de "
+            "Frequências da turma virtual (ver 'frequencia_turma')."
+        ),
+    )
+    frequencia_turma: Optional["FrequenciaTurma"] = None
 
 
 class CargaHorariaItem(BaseModel):
@@ -217,3 +226,74 @@ class EstadoSessao(BaseModel):
     vinculos: list[VinculoItem] = Field(default_factory=list)
     login_url: str = ""
     mensagem: str = ""
+
+
+class RegistroFrequencia(BaseModel):
+    """Uma aula lançada no Mapa de Frequências da turma virtual."""
+
+    data: str
+    situacao: str
+    faltas: int = 0
+
+
+class FrequenciaTurma(BaseModel):
+    """Mapa de Frequências da turma virtual (fonte mais atualizada de faltas durante o semestre)."""
+
+    fonte: str = "turma_virtual"
+    semestre: str = ""
+    codigo: str = ""
+    disciplina: str = ""
+    turma: str = ""
+    presencas: int = 0
+    aulas_ministradas: int = 0
+    faltas: int = 0
+    percentual_frequencia_ministradas: str = ""
+    aulas_carga_horaria: int = 0
+    percentual_frequencia_ch: str = ""
+    limite_faltas: int = 0
+    faltas_restantes: int = 0
+    em_risco: bool = False
+    registros: list[RegistroFrequencia] = Field(default_factory=list)
+    erro: str = ""
+
+
+class TurmaHistorica(BaseModel):
+    """Linha de 'Todas as Turmas Virtuais' (portais/discente/turmas.jsf)."""
+
+    semestre: str = ""
+    codigo: str = ""
+    disciplina: str
+    turma: str = ""
+    carga_horaria: str = ""
+    horario_bruto: str = ""
+    front_end_id: str = ""
+
+
+class SemestreDisciplinaComparada(BaseModel):
+    """Uma disciplina em um semestre específico: oferta da UFPA + seu resultado, se cursou."""
+
+    semestre: str
+    cursada: bool = False
+    resultado_aluno: Optional[NotaDisciplina] = None
+    turmas_ofertadas: list[DisciplinaOfertada] = Field(default_factory=list)
+    docentes: list[str] = Field(default_factory=list)
+    horarios: list[str] = Field(default_factory=list)
+    vagas_ofertadas: int = 0
+    vagas_ocupadas: int = 0
+    taxa_ocupacao: Optional[float] = None
+    erro: str = ""
+
+
+class ComparativoDisciplina(BaseModel):
+    """Comparação de um mesmo componente curricular ao longo de vários semestres."""
+
+    consulta: str
+    codigo: str = ""
+    disciplina: str = ""
+    semestres: list[SemestreDisciplinaComparada] = Field(default_factory=list)
+    semestres_cursados: list[str] = Field(default_factory=list)
+    docentes_distintos: list[str] = Field(default_factory=list)
+    observacoes: list[str] = Field(default_factory=list)
+
+
+NotaDisciplina.model_rebuild()

@@ -40,11 +40,13 @@ docker compose up -d --build
     "sigaa-ufpa": {
       "command": "docker",
       "args": [
-        "run", "-i", "--rm",
+        "run", "-i", "--rm", "--memory", "1g",
         "--entrypoint", "/app/.venv/bin/python",
         "--env-file", "/ruta/absoluta/a/sigaa-ufpa-mcp/.env",
         "-e", "MCP_TRANSPORT=stdio",
         "-e", "CHROME_HEADLESS=true",
+        "-e", "BROWSER_IDLE_TIMEOUT_S=300",
+        "-e", "DOWNLOAD_PATH=/app/downloads",
         "-v", "/ruta/absoluta/a/sigaa-ufpa-mcp/downloads:/app/downloads",
         "-v", "/ruta/absoluta/a/sigaa-ufpa-mcp/.sigaa_state:/app/.sigaa_state",
         "sigaa-ufpa-mcp:latest",

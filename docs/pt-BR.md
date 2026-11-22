@@ -49,7 +49,9 @@ Todas as 10 tools retornam `ToolResult` dual: JSON UTF-8 estruturado em `content
 | :--- | :---: | :--- |
 | `baixar_historico_escolar(enviar_drive=False)` | Leitura | Baixa o PDF oficial do Histórico Escolar e extrai `CRG`, `MC`, `IEA`, carga horária e obrigatórias pendentes. |
 | `emitir_atestado_matricula(enviar_drive=False)` | Leitura | Emite o Atestado de Matrícula (com fallback para Período Suplementar), salva PDF via CDP e extrai turmas + código de verificação. |
-| `consultar_notas_frequencia(semestre=None)` | Leitura | Extrai conceitos UFPA (`E`, `B`, `R`, `I`, `S`), avaliações parciais, faltas e situação por semestre. |
+| `consultar_notas_frequencia(semestre=None, incluir_frequencia_turma=True)` | Leitura | Extrai conceitos UFPA (`E`, `B`, `R`, `I`, `S`), avaliações parciais, faltas e situação por semestre. `faltas` é o total consolidado do **boletim**; as disciplinas do semestre consultado (ou do mais recente) recebem `frequencia_turma`, a contagem atualizada da turma virtual. |
+| `consultar_frequencia_turmas(disciplina=None, semestre=None)` | Leitura | Lê o *Mapa de Frequências* de cada turma virtual (fonte mais atualizada): presenças, aulas ministradas, faltas, % de frequência, limite de faltas (25% da CH), faltas restantes, alerta de risco e registro aula a aula. |
+| `comparar_disciplina_semestres(disciplina, semestres=None)` | Leitura | Compara uma disciplina (nome ou código) em vários semestres, cursados ou não: turmas ofertadas, docentes, horários, vagas e ocupação, além do seu resultado no boletim quando cursou. |
 | `listar_atividades_pendentes(incluir_concluidas=False)` | Leitura | Varre o Portal do Discente e o AVA de cada turma matriculada buscando tarefas, questionários e provas. |
 | `exportar_horarios_csv(enviar_drive=False)` | Leitura | Decodifica horários UFPA em faixas de 50 min, checa conflitos e gera CSV UTF-8 em `./downloads`. |
 | `listar_avisos_turmas(disciplina_filtro=None, limite_por_turma=5)` | Leitura | Coleta notícias e comunicados recentes no portal e nas salas virtuais (AVA). |

@@ -19,10 +19,13 @@ from sigaa_mcp.schemas import (
     CargaHorariaItem,
     ChoqueHorario,
     DisciplinaOfertada,
+    FrequenciaTurma,
     HistoricoResumo,
     NotaDisciplina,
     PerfilDiscenteResumo,
+    RegistroFrequencia,
     SlotHorario,
+    TurmaHistorica,
     TurmaMatriculada,
     VinculoItem,
 )
@@ -879,3 +882,102 @@ def parse_turmas_ofertadas_html(
         )
 
     return resultados
+
+
+# ---------------------------------------------------------------------------- frequência / turmas
+_SEMESTRE_RE = re.compile(r"^\s*(\d{4}\.\d)\s*$")
+_FRONT_ID_RE = re.compile(r"'frontEndIdTurma'\s*:\s*'([0-9A-Fa-f]+)'")
+_INT_RE = re.compile(r"(\d+)")
+
+
+def parse_todas_turmas_html(html: str) -> list[TurmaHistorica]:
+    """Parse 'Todas as Turmas Virtuais' (``/sigaa/portais/discente/turmas.jsf``) grouped by semester."""
+    soup = BeautifulSoup(html, "lxml")
+    root = soup.find(id="conteudo") or soup
+    out: list[TurmaHistorica] = []
+    semestre = ""
+    for tr in root.find_all("tr"):
+        tds = tr.find_all("td")
+        texts = [clean_ws(td.get_text(" ", strip=True)) for td in tds]
+        non_empty = [t for t in texts if t]
+        if len(non_empty) == 1 and _SEMESTRE_RE.match(non_empty[0]):
+            semestre = _SEMESTRE_RE.match(non_empty[0]).group(1)
+            continue
+        link = tr.find("a", onclick=_FRONT_ID_RE)
+        if not link or not texts:
+            continue
+        front_id = _FRONT_ID_RE.search(link.get("onclick", "")).group(1)
+        comp = texts[0]
+        codigo, _, nome = comp.partition(" - ")
+        if not nome:
+            codigo, nome = "", comp
+        out.append(
+            TurmaHistorica(
+                semestre=semestre,
+                codigo=codigo.strip(),
+                disciplina=nome.strip(),
+                turma=texts[1] if len(texts) > 1 else "",
+                carga_horaria=texts[2] if len(texts) > 2 else "",
+                horario_bruto=texts[3] if len(texts) > 3 else "",
+                front_end_id=front_id,
+            )
+        )
+    return out
+
+
+def _faltas_from_situacao(situacao: str) -> int:
+    norm = normalize_text(situacao)
+    if "PRESENTE" in norm and "FALT" not in norm:
+        return 0
+    if "FALT" in norm or "AUSENTE" in norm:
+        m = _INT_RE.search(norm)
+        return int(m.group(1)) if m else 1
+    return 0
+
+
+def parse_frequencia_turma_html(html: str, limite_frequencia: float = 0.75) -> FrequenciaTurma:
+    """Parse the AVA 'Mapa de Frequências' page of a turma virtual."""
+    soup = BeautifulSoup(html, "lxml")
+    root = soup.find(id="conteudo") or soup.body or soup
+    freq = FrequenciaTurma()
+
+    for tbl in root.select("table.listing"):
+        headers = [normalize_text(th.get_text(" ", strip=True)) for th in tbl.find_all("th")]
+        if not any("DATA" in h for h in headers):
+            continue
+        for tr in tbl.select("tbody tr") or tbl.find_all("tr"):
+            tds = [clean_ws(td.get_text(" ", strip=True)) for td in tr.find_all("td")]
+            if len(tds) >= 2 and re.match(r"\d{2}/\d{2}/\d{4}", tds[0]):
+                freq.registros.append(
+                    RegistroFrequencia(data=tds[0], situacao=tds[1], faltas=_faltas_from_situacao(tds[1]))
+                )
+
+    text = normalize_text(root.get_text(" ", strip=True))
+
+    def _num_after(label: str) -> Optional[str]:
+        m = re.search(re.escape(label) + r"\s*:?\s*([\d.,]+%?)", text)
+        return m.group(1) if m else None
+
+    if (v := _num_after("NUMERO DE AULAS MINISTRADAS")) is not None:
+        freq.aulas_ministradas = int(_INT_RE.search(v).group(1))
+    if (v := _num_after("NUMERO DE AULAS DEFINIDAS PELA CH DO COMPONENTE")) is not None:
+        freq.aulas_carga_horaria = int(_INT_RE.search(v).group(1))
+    if (v := _num_after("PORCENTAGEM DE FREQUENCIA EM RELACAO AS AULAS MINISTRADAS")) is not None:
+        freq.percentual_frequencia_ministradas = v
+    if (v := _num_after("PORCENTAGEM DE FREQUENCIA EM RELACAO A CH")) is not None:
+        freq.percentual_frequencia_ch = v
+    m = re.search(r"FREQUENCIA\s*:\s*(\d+)\s+NUMERO DE AULAS", text)
+    if m:
+        freq.presencas = int(m.group(1))
+
+    faltas_registros = sum(r.faltas for r in freq.registros)
+    if freq.aulas_ministradas and (freq.presencas or freq.registros):
+        freq.faltas = max(freq.aulas_ministradas - freq.presencas, faltas_registros)
+    else:
+        freq.faltas = faltas_registros
+
+    if freq.aulas_carga_horaria:
+        freq.limite_faltas = int(freq.aulas_carga_horaria * (1 - limite_frequencia))
+        freq.faltas_restantes = max(freq.limite_faltas - freq.faltas, 0)
+        freq.em_risco = freq.faltas >= freq.limite_faltas * 0.8
+    return freq

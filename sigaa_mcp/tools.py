@@ -8,7 +8,8 @@ from fastmcp import FastMCP
 from fastmcp.dependencies import CurrentContext
 from fastmcp.server.context import Context
 from fastmcp.tools import ToolResult
-from mcp.types import ToolAnnotations
+from loguru import logger
+from mcp.types import TextContent, ToolAnnotations
 
 from sigaa_mcp.apps.auth_app import (
     AUTH_APP_NAME,
@@ -22,6 +23,11 @@ from sigaa_mcp.flows.academico import (
     baixar_historico_escolar_flow,
     consultar_notas_frequencia_flow,
     emitir_atestado_matricula_flow,
+)
+from sigaa_mcp.flows.frequencia import (
+    anexar_frequencia_ao_boletim,
+    comparar_disciplina_semestres_flow,
+    consultar_frequencia_turmas_flow,
 )
 from sigaa_mcp.flows.perfil import trocar_imagem_perfil_flow
 from sigaa_mcp.flows.turmas import (
@@ -42,11 +48,12 @@ from sigaa_mcp.ui_components import (
     build_notas_prefab_app,
     build_ofertadas_prefab_app,
     build_perfil_result_prefab_app,
+    serialize_summary_json,
 )
 
 
 def register_tools(mcp: FastMCP) -> None:
-    """Register all 10 model-facing SIGAA UFPA tools on the FastMCP server."""
+    """Register all 12 model-facing SIGAA UFPA tools on the FastMCP server."""
 
     @mcp.tool(
         app=True,
@@ -107,19 +114,44 @@ def register_tools(mcp: FastMCP) -> None:
             idempotentHint=True,
             openWorldHint=True,
         ),
-        timeout=60.0,
+        timeout=150.0,
     )
     async def consultar_notas_frequencia(
         semestre: Optional[str] = None,
+        incluir_frequencia_turma: bool = True,
         ctx: Context = CurrentContext(),
     ) -> ToolResult:
-        """Consulta o boletim oficial 'Minhas Notas' com conceitos (E, B, R, I, S), avaliações parciais, faltas e situação por semestre."""
+        """Consulta o boletim oficial 'Minhas Notas' (conceitos E, B, R, I, S, avaliações, faltas e situação por semestre).
+
+        ATENÇÃO às duas fontes de faltas: o campo `faltas` vem do BOLETIM (total consolidado, pode estar
+        defasado durante o semestre). Com `incluir_frequencia_turma=True`, as disciplinas do semestre
+        consultado (ou do mais recente) recebem `frequencia_turma`, lida do Mapa de Frequências da turma
+        virtual — a fonte MAIS ATUALIZADA, com presenças, faltas, limite de faltas (25% da CH) e faltas
+        restantes. Sempre que `frequencia_turma` existir, use-a para responder sobre faltas atuais.
+        """
         try:
             notas = await consultar_notas_frequencia_flow(semestre=semestre, ctx=ctx)
+            semestre_freq = (semestre or "").strip() or max((n.semestre for n in notas if n.semestre), default="")
+            if incluir_frequencia_turma and semestre_freq:
+                try:
+                    freqs = await consultar_frequencia_turmas_flow(semestre=semestre_freq, ctx=ctx)
+                    anexar_frequencia_ao_boletim(notas, freqs)
+                except AuthenticationRequiredError:
+                    raise
+                except Exception as exc:  # boletim still useful without live attendance
+                    logger.warning(f"Frequência das turmas virtuais indisponível: {exc}")
             payload = {
                 "semestre_filtro": semestre or "TODOS",
                 "total_disciplinas": len(notas),
-                "disciplinas": [n.model_dump(mode="json") for n in notas],
+                "fontes_de_faltas": {
+                    "faltas": "Boletim 'Minhas Notas' (consolidado; pode estar defasado).",
+                    "frequencia_turma": (
+                        f"Mapa de Frequências da turma virtual (mais atualizado), anexado ao semestre {semestre_freq}."
+                        if incluir_frequencia_turma and semestre_freq
+                        else "Não consultado."
+                    ),
+                },
+                "disciplinas": [n.model_dump(mode="json", exclude_none=True) for n in notas],
             }
             return build_dual_tool_result(payload, build_notas_prefab_app(notas, semestre))
         except AuthenticationRequiredError as exc:
@@ -211,6 +243,77 @@ def register_tools(mcp: FastMCP) -> None:
                 "avisos": [a.model_dump(mode="json") for a in avisos],
             }
             return build_dual_tool_result(payload, build_avisos_prefab_app(avisos))
+        except AuthenticationRequiredError as exc:
+            return build_login_required_tool_result(str(exc))
+
+    @mcp.tool(
+        output_schema=None,
+        tags={"academico", "frequencia"},
+        annotations=ToolAnnotations(
+            title="Consultar Frequência Atualizada das Turmas",
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=True,
+        ),
+        timeout=150.0,
+    )
+    async def consultar_frequencia_turmas(
+        disciplina: Optional[str] = None,
+        semestre: Optional[str] = None,
+        ctx: Context = CurrentContext(),
+    ) -> ToolResult:
+        """Lê o Mapa de Frequências de cada turma virtual — a fonte MAIS ATUALIZADA de faltas (o boletim pode estar defasado).
+
+        Retorna presenças, aulas ministradas, faltas, % de frequência, limite de faltas (25% das aulas da CH),
+        faltas restantes, alerta de risco e o registro aula a aula. Sem filtros, usa o semestre mais recente.
+        `disciplina` aceita nome ou código; `semestre` no formato AAAA.P (ex.: 2026.2).
+        """
+        try:
+            freqs = await consultar_frequencia_turmas_flow(
+                disciplina_filtro=disciplina, semestre=semestre, ctx=ctx
+            )
+            payload = {
+                "fonte": "Mapa de Frequências da turma virtual (SIGAA AVA)",
+                "total_turmas": len(freqs),
+                "turmas_em_risco": [f.disciplina for f in freqs if f.em_risco],
+                "turmas": [f.model_dump(mode="json") for f in freqs],
+            }
+            return ToolResult(content=[TextContent(type="text", text=serialize_summary_json(payload))])
+        except AuthenticationRequiredError as exc:
+            return build_login_required_tool_result(str(exc))
+
+    @mcp.tool(
+        output_schema=None,
+        tags={"turmas", "oferta", "comparativo"},
+        annotations=ToolAnnotations(
+            title="Comparar Disciplina entre Semestres",
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=True,
+        ),
+        timeout=240.0,
+    )
+    async def comparar_disciplina_semestres(
+        disciplina: str,
+        semestres: Optional[list[str]] = None,
+        ctx: Context = CurrentContext(),
+    ) -> ToolResult:
+        """Compara uma mesma disciplina (nome ou código, ex.: 'Cálculo I' ou 'NITAE005') em vários semestres, cursados ou não.
+
+        Para cada semestre: turmas ofertadas pela UFPA (docentes, horários, local, vagas ofertadas/ocupadas,
+        taxa de ocupação) e, se você cursou, seu resultado no boletim (conceito, faltas, situação).
+        `semestres` no formato AAAA.P (ex.: ["2024.4", "2025.2"]); se omitido, usa os semestres em que
+        você cursou a disciplina + os 4 semestres mais recentes do seu boletim.
+        """
+        try:
+            comp = await comparar_disciplina_semestres_flow(
+                disciplina=disciplina, semestres=semestres, ctx=ctx
+            )
+            return ToolResult(
+                content=[TextContent(type="text", text=serialize_summary_json(comp.model_dump(mode="json")))]
+            )
         except AuthenticationRequiredError as exc:
             return build_login_required_tool_result(str(exc))
 

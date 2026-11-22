@@ -21,7 +21,9 @@ Every tool returns a dual `ToolResult`: structured UTF-8 JSON in `content[0].tex
 | :--- | :---: | :--- |
 | `baixar_historico_escolar(enviar_drive=False)` | Read-only | Downloads the official *Histórico Escolar* PDF and extracts `CRG`, `MC`, `IEA`, credit hours, and pending mandatory courses. |
 | `emitir_atestado_matricula(enviar_drive=False)` | Read-only | Emits the *Atestado de Matrícula* (with automatic supplemental-period fallback), saves the PDF via CDP, and parses enrolled classes + verification code. |
-| `consultar_notas_frequencia(semestre=None)` | Read-only | Extracts UFPA grades/concepts (`E`, `B`, `R`, `I`, `S`), unit evaluations, absences, and status across all or selected semesters. |
+| `consultar_notas_frequencia(semestre=None, incluir_frequencia_turma=True)` | Read-only | Extracts UFPA grades/concepts (`E`, `B`, `R`, `I`, `S`), unit evaluations, absences, and status across all or selected semesters. `faltas` is the consolidated **boletim** count; rows of the queried (or latest) semester also get `frequencia_turma`, the up-to-date count from the turma virtual. |
+| `consultar_frequencia_turmas(disciplina=None, semestre=None)` | Read-only | Reads each turma virtual's *Mapa de Frequências* (most up-to-date source): presences, lessons given, absences, % attendance, absence limit (25% of CH), remaining absences, risk flag, and per-lesson log. |
+| `comparar_disciplina_semestres(disciplina, semestres=None)` | Read-only | Compares one discipline (name or code) across semesters, taken or not: offered classes, teachers, schedules, seats and occupancy, plus your own boletim result where you took it. |
 | `listar_atividades_pendentes(incluir_concluidas=False)` | Read-only | Scans the student portal and each enrolled virtual classroom (*AVA*) for tasks, quizzes, and exams. |
 | `exportar_horarios_csv(enviar_drive=False)` | Read-only | Decodes UFPA schedule strings into 50-minute weekly slots, checks for overlaps, and writes a UTF-8 CSV to `./downloads`. |
 | `listar_avisos_turmas(disciplina_filtro=None, limite_por_turma=5)` | Read-only | Collects professor announcements from the portal ticker and AVA news boards. |
