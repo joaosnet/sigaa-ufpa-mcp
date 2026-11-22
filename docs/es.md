@@ -49,7 +49,9 @@ Todas las herramientas devuelven `ToolResult` dual: JSON UTF-8 en `content[0].te
 | :--- | :---: | :--- |
 | `baixar_historico_escolar(enviar_drive=False)` | Lectura | Descarga el PDF oficial del Historial Académico y extrae `CRG`, `MC`, `IEA`, carga horaria y obligatorias pendientes. |
 | `emitir_atestado_matricula(enviar_drive=False)` | Lectura | Emite el Certificado de Matrícula (con soporte para período suplementario), guarda PDF vía CDP y extrae materias + código de verificación. |
-| `consultar_notas_frequencia(semestre=None)` | Lectura | Consulta conceptos oficiales UFPA (`E`, `B`, `R`, `I`, `S`), notas parciales, faltas y estado por semestre. |
+| `consultar_notas_frequencia(semestre=None, incluir_frequencia_turma=True)` | Lectura | Consulta conceptos oficiales UFPA (`E`, `B`, `R`, `I`, `S`), notas parciales, faltas y estado por semestre. `faltas` es el total consolidado del **boletín**; las asignaturas del semestre consultado (o el más reciente) reciben `frequencia_turma`, el conteo actualizado de la turma virtual. |
+| `consultar_frequencia_turmas(disciplina=None, semestre=None)` | Lectura | Lee el *Mapa de Frequências* de cada turma virtual (fuente más actualizada): presencias, clases dictadas, faltas, % de asistencia, límite de faltas (25% de la CH), faltas restantes, alerta de riesgo y registro por clase. |
+| `comparar_disciplina_semestres(disciplina, semestres=None)` | Lectura | Compara una asignatura (nombre o código) en varios semestres, cursados o no: turmas ofertadas, docentes, horarios, cupos y ocupación, además de tu resultado en el boletín cuando la cursaste. |
 | `listar_atividades_pendentes(incluir_concluidas=False)` | Lectura | Revisa el Portal del Estudiante y el AVA de cada materia buscando tareas, cuestionarios y exámenes. |
 | `exportar_horarios_csv(enviar_drive=False)` | Lectura | Decodifica horarios UFPA en bloques de 50 min, verifica solapamientos y guarda CSV UTF-8 en `./downloads`. |
 | `listar_avisos_turmas(disciplina_filtro=None, limite_por_turma=5)` | Lectura | Recopila anuncios docentes publicados en el portal y en el AVA. |

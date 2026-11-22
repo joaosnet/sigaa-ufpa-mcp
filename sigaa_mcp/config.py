@@ -89,6 +89,10 @@ class Settings:
         default_factory=lambda: _env_bool("CHROME_HEADLESS", True)
     )
     browser_timeout_ms: int = field(default_factory=_parse_timeout_ms)
+    # Seconds of inactivity before Chromium is closed to free RAM/CPU (0 disables).
+    browser_idle_timeout_s: float = field(
+        default_factory=lambda: float((os.getenv("BROWSER_IDLE_TIMEOUT_S") or "300").strip())
+    )
     vnc_password: str = field(
         default_factory=lambda: (os.getenv("VNC_PASSWORD") or "sigaa").strip()
     )

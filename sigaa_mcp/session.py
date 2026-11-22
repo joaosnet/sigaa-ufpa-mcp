@@ -6,6 +6,7 @@ import asyncio
 import base64
 import os
 import stat
+import time
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Optional
@@ -21,11 +22,46 @@ class AuthenticationRequiredError(RuntimeError):
     """Raised when an operation requires SIGAA login and no active session or .env credentials exist."""
 
 
+class _ActivityLock:
+    """asyncio.Lock wrapper that tracks browser activity to drive the idle shutdown timer.
+
+    Every ``async with session_manager.lock`` cancels the idle watchdog on entry and, on exit,
+    re-arms it so Chromium is closed after ``BROWSER_IDLE_TIMEOUT_S`` seconds of inactivity.
+    """
+
+    def __init__(self, owner: "SigaaSessionManager") -> None:
+        self._lock = asyncio.Lock()
+        self._owner = owner
+
+    def locked(self) -> bool:
+        return self._lock.locked()
+
+    async def acquire(self) -> bool:
+        await self._lock.acquire()
+        self._owner._cancel_idle_timer()
+        return True
+
+    def release(self) -> None:
+        self._lock.release()
+        self._owner._arm_idle_timer()
+
+    async def __aenter__(self) -> None:
+        await self.acquire()
+
+    async def __aexit__(self, *exc: object) -> None:
+        self.release()
+
+
 class SigaaSessionManager:
     """Thread/task-safe singleton managing Playwright Chromium and SIGAA session state."""
 
     def __init__(self) -> None:
-        self._lock = asyncio.Lock()
+        self._lock = _ActivityLock(self)
+        self._idle_task: Optional[asyncio.Task[None]] = None
+        self._last_activity: float = time.monotonic()
+        # In-memory cookie snapshot kept after an idle shutdown so the next call resumes the
+        # SIGAA session without a full re-login (never written to disk unless persistence is on).
+        self._ram_storage_state: Optional[dict] = None
         self._playwright: Optional[Playwright] = None
         self._browser: Optional[Browser] = None
         self._context: Optional[BrowserContext] = None
@@ -45,8 +81,66 @@ class SigaaSessionManager:
         self._change_listeners: list[Callable[[], Awaitable[None]]] = []
 
     @property
-    def lock(self) -> asyncio.Lock:
+    def lock(self) -> _ActivityLock:
         return self._lock
+
+    @property
+    def browser_running(self) -> bool:
+        return self._browser is not None
+
+    # ------------------------------------------------------------------ idle shutdown
+    def _cancel_idle_timer(self) -> None:
+        task = self._idle_task
+        self._idle_task = None
+        if task is not None and not task.done() and task is not asyncio.current_task():
+            task.cancel()
+
+    def _arm_idle_timer(self) -> None:
+        self._last_activity = time.monotonic()
+        timeout = settings.browser_idle_timeout_s
+        if timeout <= 0 or self._browser is None:
+            return
+        self._cancel_idle_timer()
+        try:
+            self._idle_task = asyncio.get_running_loop().create_task(self._idle_watchdog(timeout))
+        except RuntimeError:
+            self._idle_task = None
+
+    async def _idle_watchdog(self, timeout: float) -> None:
+        try:
+            while True:
+                remaining = self._last_activity + timeout - time.monotonic()
+                if remaining > 0:
+                    await asyncio.sleep(remaining)
+                    continue
+                if self._lock.locked():
+                    return  # busy again; release() re-arms the watchdog
+                if self.awaiting_vinculo_selection:
+                    # User still has to pick a vínculo on the open page; give them another window.
+                    self._last_activity = time.monotonic()
+                    continue
+                async with self._lock._lock:
+                    await self._shutdown_idle_browser_unlocked()
+                return
+        except asyncio.CancelledError:
+            pass
+
+    async def _shutdown_idle_browser_unlocked(self) -> None:
+        if self._browser is None:
+            return
+        snapshot: Optional[dict] = None
+        if self._context is not None:
+            try:
+                snapshot = await self._context.storage_state()
+            except Exception as exc:
+                logger.debug(f"Não foi possível capturar cookies antes do desligamento ocioso: {exc}")
+            await self.save_storage_state_if_enabled()
+        await self._close_browser_unlocked()
+        self._ram_storage_state = snapshot
+        logger.info(
+            f"Chromium encerrado após {settings.browser_idle_timeout_s:.0f}s ocioso "
+            "(será reaberto automaticamente na próxima chamada)."
+        )
 
     @property
     def has_credentials(self) -> bool:
@@ -103,7 +197,9 @@ class SigaaSessionManager:
         if self._page is not None and not self._page.is_closed():
             return self._page
 
+        resume_state = self._ram_storage_state
         await self._close_browser_unlocked()
+        self._ram_storage_state = resume_state
         logger.info(
             f"Inicializando Chromium Playwright (headless={settings.chrome_headless}, timeout={settings.browser_timeout_ms}ms)..."
         )
@@ -126,7 +222,10 @@ class SigaaSessionManager:
             "locale": "pt-BR",
             "timezone_id": "America/Belem",
         }
-        if settings.storage_state_path.is_file():
+        if self._ram_storage_state is not None:
+            context_kwargs["storage_state"] = self._ram_storage_state
+            logger.info("Retomando sessão SIGAA a partir dos cookies mantidos em RAM.")
+        elif settings.storage_state_path.is_file():
             try:
                 context_kwargs["storage_state"] = str(settings.storage_state_path)
                 self._persist_cookies = True
@@ -137,6 +236,7 @@ class SigaaSessionManager:
         self._context = await self._browser.new_context(**context_kwargs)
         self._context.set_default_timeout(settings.browser_timeout_ms)
         self._page = await self._context.new_page()
+        self._ram_storage_state = None
         return self._page
 
     async def save_storage_state_if_enabled(self) -> None:
@@ -240,9 +340,11 @@ class SigaaSessionManager:
         self._context = None
         self._browser = None
         self._playwright = None
+        self._ram_storage_state = None
 
     async def close(self) -> None:
-        async with self._lock:
+        self._cancel_idle_timer()
+        async with self._lock._lock:
             await self._close_browser_unlocked()
             self.authenticated = False
 

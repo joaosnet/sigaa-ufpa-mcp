@@ -16,6 +16,7 @@ No `.env` file is required when signing in through `abrir_login_sigaa` or `http:
 | `MCP_SERVER_PORT` | `8003` | HTTP port for `/mcp`, `/login`, and `/health` |
 | `CHROME_HEADLESS` | `true` (`false` in Docker) | Headless locally or visible inside Docker's Xvfb/noVNC |
 | `BROWSER_TIMEOUT_MS` | `45000` | Playwright navigation timeout in milliseconds |
+| `BROWSER_IDLE_TIMEOUT_S` | `300` | Seconds without tool calls before Chromium is closed to free RAM/CPU (cookies stay in RAM, next call resumes the session). `0` disables |
 | `VNC_PASSWORD` | `sigaa` | Password for noVNC (`:6080`) and x11vnc (`:5900`) inside Docker |
 | `DOWNLOAD_PATH` | `./downloads` | Output folder for generated PDFs and CSVs |
 | `STORAGE_STATE_PATH` | `.sigaa_state/storage_state.json` | Optional cookie file (`0600`) when *"Keep session active"* is checked |
