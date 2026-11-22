@@ -1,6 +1,6 @@
-# Pacote Raiz sigaa_mcp
+# Raiz do Pacote
 
-> 2 nodes · cohesion 1.00
+> 2 nodes
 
 ## Key Concepts
 

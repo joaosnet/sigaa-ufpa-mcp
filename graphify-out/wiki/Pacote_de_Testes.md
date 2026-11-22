@@ -1,10 +1,11 @@
-# Metadados do Projeto Python
+# Pacote de Testes
 
-> 1 nodes · cohesion 1.00
+> 2 nodes
 
 ## Key Concepts
 
-- **sigaa-ufpa-mcp** (0 connections) — `pyproject.toml`
+- **tests/__init__.py** (1 connections) — `tests/__init__.py`
+- **Automated test suite for SIGAA UFPA MCP.** (1 connections) — `tests/__init__.py`
 
 ## Relationships
 
@@ -12,11 +13,11 @@
 
 ## Source Files
 
-- `pyproject.toml`
+- `tests/__init__.py`
 
 ## Audit Trail
 
-- EXTRACTED: 0 (0%)
+- EXTRACTED: 1 (100%)
 - INFERRED: 0 (0%)
 - AMBIGUOUS: 0 (0%)
 

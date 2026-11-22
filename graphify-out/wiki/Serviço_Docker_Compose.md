@@ -1,6 +1,6 @@
-# Infraestrutura Docker Compose & noVNC
+# Serviço Docker Compose
 
-> 22 nodes · cohesion 0.09
+> 22 nodes
 
 ## Key Concepts
 

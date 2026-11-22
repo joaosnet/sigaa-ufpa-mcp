@@ -1,18 +1,18 @@
-# Configurações Tipadas de Runtime
+# Configurações de Runtime
 
-> 5 nodes · cohesion 0.40
+> 5 nodes
 
 ## Key Concepts
 
 - **Settings** (5 connections) — `sigaa_mcp/config.py`
-- **Typed runtime configuration loaded from environment variables.** (1 connections) — `sigaa_mcp/config.py`
 - **.has_env_credentials()** (1 connections) — `sigaa_mcp/config.py`
-- **.__post_init__()** (1 connections) — `sigaa_mcp/config.py`
 - **.public_login_url()** (1 connections) — `sigaa_mcp/config.py`
+- **.__post_init__()** (1 connections) — `sigaa_mcp/config.py`
+- **Typed runtime configuration loaded from environment variables.** (1 connections) — `sigaa_mcp/config.py`
 
 ## Relationships
 
-- [Logging Puro em Stderr](Logging_Puro_em_Stderr.md) (1 shared connections)
+- [Configuração e Logging em Stderr](Configuração_e_Logging_em_Stderr.md) (1 shared connections)
 
 ## Source Files
 

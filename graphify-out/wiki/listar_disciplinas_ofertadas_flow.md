@@ -1,8 +1,8 @@
 # listar_disciplinas_ofertadas_flow()
 
-> God node · 21 connections · `sigaa_mcp/flows/turmas.py`
+> God node · 20 connections · `sigaa_mcp/flows/turmas.py`
 
-**Community:** [Parsers, Horários UFPA & Schemas Acadêmicos](Parsers,_Horários_UFPA_&_Schemas_Acadêmicos.md)
+**Community:** [Fluxos Acadêmicos e Parsers](Fluxos_Acadêmicos_e_Parsers.md)
 
 ## Connections by Relation
 
@@ -10,12 +10,11 @@
 - [register_tools()](register_tools.md) `EXTRACTED`
 - [ensure_authenticated_portal()](ensure_authenticated_portal.md) `EXTRACTED`
 - [parse_portal_discente()](parse_portal_discente.md) `EXTRACTED`
+- [normalize_text()](normalize_text.md) `EXTRACTED`
 - invoke_portal_menu() `EXTRACTED`
-- normalize_text() `EXTRACTED`
-- _report() `EXTRACTED`
 - parse_turmas_ofertadas_html() `EXTRACTED`
-- abrir_explorador_turmas() `EXTRACTED`
 - re `EXTRACTED`
+- abrir_explorador_turmas() `EXTRACTED`
 - buscar_ofertas_ui() `EXTRACTED`
 - _match_select_option() `EXTRACTED`
 - listar_disciplinas_ofertadas() `EXTRACTED`

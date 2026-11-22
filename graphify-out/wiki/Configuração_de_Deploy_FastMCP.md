@@ -1,6 +1,6 @@
-# Manifesto de Deploy FastMCP
+# Configuração de Deploy FastMCP
 
-> 11 nodes · cohesion 0.18
+> 11 nodes
 
 ## Key Concepts
 

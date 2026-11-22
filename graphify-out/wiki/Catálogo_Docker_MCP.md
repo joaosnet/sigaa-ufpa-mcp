@@ -1,6 +1,6 @@
-# Catálogo Docker MCP UFPA
+# Catálogo Docker MCP
 
-> 31 nodes · cohesion 0.06
+> 31 nodes
 
 ## Key Concepts
 
