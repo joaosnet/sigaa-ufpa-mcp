@@ -1,17 +1,17 @@
-# Serviço OAuth 2.0 Google Drive
+# Serviço Google Drive
 
-> 15 nodes · cohesion 0.21
+> 15 nodes
 
 ## Key Concepts
 
-- **GoogleDriveService** (22 connections) — `sigaa_mcp/drive_service.py`
-- **.listar_arquivos_na_pasta()** (4 connections) — `sigaa_mcp/drive_service.py`
+- **GoogleDriveService** (20 connections) — `sigaa_mcp/drive_service.py`
 - **.upload_arquivo()** (4 connections) — `sigaa_mcp/drive_service.py`
 - **resource_drive_images()** (4 connections) — `sigaa_mcp/resources.py`
 - **.download_bytes()** (3 connections) — `sigaa_mcp/drive_service.py`
 - **.download_com_data_uri()** (3 connections) — `sigaa_mcp/drive_service.py`
 - **.download_em_base64()** (3 connections) — `sigaa_mcp/drive_service.py`
 - **._initialize_service()** (3 connections) — `sigaa_mcp/drive_service.py`
+- **.listar_arquivos_na_pasta()** (3 connections) — `sigaa_mcp/drive_service.py`
 - **Any** (3 connections)
 - **._get_oauth_credentials()** (2 connections) — `sigaa_mcp/drive_service.py`
 - **.__init__()** (2 connections) — `sigaa_mcp/drive_service.py`
@@ -22,12 +22,10 @@
 
 ## Relationships
 
-- [Resources MCP & Templates de Downloads](Resources_MCP_&_Templates_de_Downloads.md) (4 shared connections)
-- [Parsers, Horários UFPA & Schemas Acadêmicos](Parsers,_Horários_UFPA_&_Schemas_Acadêmicos.md) (3 shared connections)
-- [Fluxo de Troca e Simulação de Perfil](Fluxo_de_Troca_e_Simulação_de_Perfil.md) (3 shared connections)
-- [Módulos de Recursos e Sessão](Módulos_de_Recursos_e_Sessão.md) (2 shared connections)
-- [PerfilDiscenteApp (FastMCPApp)](PerfilDiscenteApp_FastMCPApp.md) (2 shared connections)
-- [Tools FastMCP 4.1, Prefab UI & Autenticação](Tools_FastMCP_4.1,_Prefab_UI_&_Autenticação.md) (1 shared connections)
+- [Fluxos Acadêmicos e Parsers](Fluxos_Acadêmicos_e_Parsers.md) (3 shared connections)
+- [Atualização de Foto de Perfil](Atualização_de_Foto_de_Perfil.md) (3 shared connections)
+- [Recursos MCP](Recursos_MCP.md) (3 shared connections)
+- [Helpers de Configuração do Drive](Helpers_de_Configuração_do_Drive.md) (3 shared connections)
 
 ## Source Files
 
@@ -36,8 +34,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 32 (86%)
-- INFERRED: 5 (14%)
+- EXTRACTED: 31 (91%)
+- INFERRED: 3 (9%)
 - AMBIGUOUS: 0 (0%)
 
 ---

@@ -1,6 +1,6 @@
-# PainelAcadêmicoApp (FastMCPApp)
+# App Painel Acadêmico
 
-> 9 nodes · cohesion 0.33
+> 9 nodes
 
 ## Key Concepts
 
@@ -16,8 +16,9 @@
 
 ## Relationships
 
-- [Tools FastMCP 4.1, Prefab UI & Autenticação](Tools_FastMCP_4.1,_Prefab_UI_&_Autenticação.md) (7 shared connections)
-- [Parsers, Horários UFPA & Schemas Acadêmicos](Parsers,_Horários_UFPA_&_Schemas_Acadêmicos.md) (5 shared connections)
+- [Apps MCP e UI de Autenticação](Apps_MCP_e_UI_de_Autenticação.md) (6 shared connections)
+- [Fluxos Acadêmicos e Parsers](Fluxos_Acadêmicos_e_Parsers.md) (5 shared connections)
+- [Erros de Sessão e Reinício](Erros_de_Sessão_e_Reinício.md) (1 shared connections)
 
 ## Source Files
 

@@ -1,12 +1,10 @@
-# Configuração Cliente MCP Local
+# Documentação Técnica em Português
 
-> 3 nodes · cohesion 0.67
+> 1 nodes
 
 ## Key Concepts
 
-- **sigaa-ufpa** (2 connections) — `mcp.json`
-- **mcp.json** (1 connections) — `mcp.json`
-- **uv** (1 connections) — `mcp.json`
+- **Documentação Técnica — SIGAA UFPA MCP** (0 connections) — `docs/pt-BR.md`
 
 ## Relationships
 
@@ -14,11 +12,11 @@
 
 ## Source Files
 
-- `mcp.json`
+- `docs/pt-BR.md`
 
 ## Audit Trail
 
-- EXTRACTED: 2 (100%)
+- EXTRACTED: 0 (0%)
 - INFERRED: 0 (0%)
 - AMBIGUOUS: 0 (0%)
 

@@ -2,7 +2,7 @@
 
 > God node · 19 connections · `sigaa_mcp/schemas.py`
 
-**Community:** [Portal Web Local de Login Visual (/login)](Portal_Web_Local_de_Login_Visual_-login.md)
+**Community:** [Login SIGAA e Portal Web](Login_SIGAA_e_Portal_Web.md)
 
 ## Connections by Relation
 
@@ -14,8 +14,8 @@
 - schemas.py `EXTRACTED`
 
 ### imports
-- ui_components.py `EXTRACTED`
 - auth.py `EXTRACTED`
+- ui_components.py `EXTRACTED`
 - session.py `EXTRACTED`
 - web_login.py `EXTRACTED`
 - test_web_login.py `EXTRACTED`
